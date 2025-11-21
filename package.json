@@ -1,0 +1,25 @@
+{
+  "name": "npc-version",
+  "version": "1.0.0",
+  "description": "AI NPC 单人世界 - 完整项目",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n \"backend,frontend\" -c \"cyan,magenta\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd npc-backend && npm run dev",
+    "dev:frontend": "cd npc-frontend && npm run dev",
+    "start": "concurrently -n \"backend,frontend\" -c \"cyan,magenta\" \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "cd npc-backend && npm start",
+    "start:frontend": "cd npc-frontend && npm run dev",
+    "install:all": "npm install && cd npc-backend && npm install && cd ../npc-frontend && npm install"
+  },
+  "keywords": [
+    "npc",
+    "ai",
+    "chat"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
