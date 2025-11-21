@@ -45,7 +45,10 @@ const MessageBubble = ({ message, avatarUrl }) => {
     borderTopRightRadius: isUser ? 2 : 12,
     borderTopLeftRadius: isUser ? 12 : 2,
     position: 'relative',
-    wordBreak: 'break-word',
+    wordBreak: 'break-word', // 允许在单词内换行（处理长单词）
+    wordWrap: 'break-word', // 兼容性写法
+    overflowWrap: 'break-word', // 现代标准写法
+    whiteSpace: 'pre-wrap', // 保留换行符，但允许自动换行
     fontSize: 15,
     lineHeight: 1.6,
   };
@@ -72,13 +75,8 @@ const MessageBubble = ({ message, avatarUrl }) => {
       {/* 消息内容 */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: isUser ? 'flex-end' : 'flex-start' }}>
         <div style={bubbleStyle}>
-          {/* 简单处理换行符 */}
-          {message.content.split('\n').map((line, index) => (
-            <React.Fragment key={index}>
-              {line}
-              {index < message.content.split('\n').length - 1 && <br />}
-            </React.Fragment>
-          ))}
+          {/* 直接渲染内容，使用 whiteSpace: 'pre-wrap' 处理换行 */}
+          {message.content}
         </div>
         
         {/* 时间戳 (可选，这里暂不显示具体时间，保持界面简洁) */}

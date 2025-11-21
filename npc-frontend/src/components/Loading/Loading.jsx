@@ -49,14 +49,15 @@ const Loading = ({
     
     return (
       <div style={fullScreenStyle}>
-        <Spin tip={tip} size="large" {...rest}>
-          {/* 全屏模式下不需要 children */}
-        </Spin>
+        <div style={{ textAlign: 'center' }}>
+          <Spin size="large" {...rest} />
+          {tip && <div style={{ marginTop: 16, color: '#666' }}>{tip}</div>}
+        </div>
       </div>
     );
   }
 
-  // 内联加载（包裹内容）
+  // 内联加载（包裹内容）- 嵌套模式下可以使用 tip
   return (
     <Spin spinning={spinning} tip={tip} size={size} {...rest}>
       {children}

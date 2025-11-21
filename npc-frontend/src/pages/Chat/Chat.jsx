@@ -21,6 +21,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Layout, Typography, Input, Button, Space, message, Avatar, Empty, Spin } from 'antd';
 import { ArrowLeftOutlined, SendOutlined, UserOutlined, RobotOutlined, LoadingOutlined } from '@ant-design/icons';
 import api from '../../api';
+import { useAuth } from '../../context/AuthContext';
 import MessageBubble from '../../components/MessageBubble/MessageBubble';
 
 const { Header, Content, Footer } = Layout;
@@ -30,6 +31,7 @@ const { TextArea } = Input;
 const Chat = () => {
   const { agentId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const messagesEndRef = useRef(null);
   
   // 状态管理
@@ -40,9 +42,6 @@ const Chat = () => {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
 
-  // 模拟当前用户 ID
-  const currentUserId = 'user_123';
-
   // 获取数据（NPC 详情和对话历史）
   useEffect(() => {
     const fetchData = async () => {
@@ -52,8 +51,8 @@ const Chat = () => {
 
         // 并行获取 NPC 详情和对话历史
         const [agentRes, historyRes] = await Promise.all([
-          api.agents.getById(agentId, currentUserId),
-          api.history.get(currentUserId, agentId)
+          api.agents.getById(agentId, user.id),
+          api.history.get(user.id, agentId)
         ]);
 
         if (agentRes.success) {
@@ -78,10 +77,10 @@ const Chat = () => {
       }
     };
 
-    if (agentId) {
+    if (agentId && user) {
       fetchData();
     }
-  }, [agentId]);
+  }, [agentId, user]);
 
   // 自动滚动到底部
   const scrollToBottom = () => {
@@ -112,29 +111,43 @@ const Chat = () => {
 
     try {
       // 调用 API 发送消息
+      if (!user) {
+        message.warning('请先登录');
+        return;
+      }
+
       const response = await api.messages.send({
         agentId,
-        userId: currentUserId,
+        userId: user.id,
         message: content
       });
 
       if (response.success) {
-        // 替换临时消息为真实消息（如果有 ID 变化），并添加 AI 回复
-        // 这里简化处理，直接添加 AI 回复，因为 Mock 数据已经包含了用户消息
-        // 但为了避免 Mock 数据的重复添加逻辑影响前端展示，我们只追加 AI 回复
-        // 注意：MockAdapter.messages.send 在内存中添加了用户消息和 AI 消息
-        // 但前端状态为了流畅性，这里手动更新
-        
+        // 发送成功后，更新消息列表
+        // 后端已经保存了用户消息和 AI 回复，我们只需要：
+        // 1. 移除临时用户消息
+        // 2. 添加真实的用户消息（去掉临时标记）
+        // 3. 添加 AI 回复消息
         setMessages(prev => {
-          // 移除临时用户消息（如果需要严格对应 ID，这里可以优化）
+          // 移除所有临时消息
           const filtered = prev.filter(m => !m.isTemp);
-          // 重新添加这一轮的对话（从 API 返回的数据中获取，或者手动构建）
-          // 由于 API 只返回 AI 消息，我们保留之前的用户消息（去掉 isTemp 标记）
-          const userMsg = { ...tempUserMsg, isTemp: false };
+          // 添加真实的用户消息和 AI 回复
+          const userMsg = { 
+            ...tempUserMsg, 
+            isTemp: false,
+            id: `msg_user_${Date.now()}` // 使用时间戳生成 ID，避免与历史消息冲突
+          };
           return [...filtered, userMsg, response.data];
         });
       } else {
-        throw new Error(response.error?.message || '发送失败');
+        // 根据错误码提供更友好的错误提示
+        let errorMessage = response.error?.message || '发送失败';
+        if (response.error?.code === 'LLM_API_ERROR' || response.error?.code === 'LLM_API_TIMEOUT') {
+          errorMessage = 'AI 回复生成失败，可能是 LLM API 配置问题或网络超时。请检查后端环境变量中的 API Key 配置。';
+        } else if (response.error?.code === 'API_KEY_MISSING') {
+          errorMessage = '缺少 LLM API Key，请在后端配置环境变量。';
+        }
+        throw new Error(errorMessage);
       }
     } catch (err) {
       console.error('Send message error:', err);
@@ -163,8 +176,9 @@ const Chat = () => {
   // 渲染内容
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <Spin tip="加载对话中..." size="large" />
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <Spin size="large" />
+        <div style={{ marginTop: 16, color: '#666' }}>加载对话中...</div>
       </div>
     );
   }

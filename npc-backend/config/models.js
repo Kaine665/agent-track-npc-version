@@ -52,112 +52,56 @@
  * 解析启用的提供商列表
  *
  * 【功能说明】
- * 从环境变量读取启用的提供商
+ * 统一使用 OpenRouter 作为模型供应商
  *
- * 【优先级】
- * 1. 如果设置了 ENABLE_* 环境变量，使用环境变量的值
- * 2. 如果没有设置 ENABLE_* 环境变量，从 MODELS 配置中自动推断启用的提供商
+ * 【配置说明】
+ * V1 版本统一使用 OpenRouter，所有模型都通过 OpenRouter 调用
  *
- * 【环境变量】
- * - ENABLE_OPENAI=true/false（可选）
- * - ENABLE_DEEPSEEK=true/false（可选）
- * - ENABLE_OPENROUTER=true/false（可选）
- *
- * 【自动推断】
- * 如果 MODELS 中配置了某个提供商的模型，自动启用该提供商
- *
- * @returns {Object<string, boolean>} 提供商启用状态 { openai: true, deepseek: false, ... }
+ * @returns {Object<string, boolean>} 提供商启用状态 { openai: false, deepseek: false, openrouter: true }
  */
 function parseEnabledProviders() {
-  // 1. 先读取环境变量中的显式配置
-  const explicitProviders = {
-    openai: process.env.ENABLE_OPENAI === "true",
-    deepseek: process.env.ENABLE_DEEPSEEK === "true",
-    openrouter: process.env.ENABLE_OPENROUTER === "true",
-  };
-
-  // 2. 检查是否有显式配置
-  const hasExplicitConfig = Object.values(explicitProviders).some(
-    (enabled) => enabled === true
-  );
-
-  // 3. 如果有显式配置，直接返回
-  if (hasExplicitConfig) {
-    return explicitProviders;
-  }
-
-  // 4. 如果没有显式配置，从 MODELS 配置中自动推断
-  const modelsEnv = process.env.MODELS || "";
-  const inferredProviders = {
+  // V1 版本统一使用 OpenRouter
+  return {
     openai: false,
     deepseek: false,
-    openrouter: false,
+    openrouter: true,
   };
-
-  if (modelsEnv.trim()) {
-    const modelList = modelsEnv
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
-
-    for (const modelConfig of modelList) {
-      const [, provider] = modelConfig.split(":").map((item) => item.trim());
-      if (provider) {
-        // 映射提供商名称（anthropic -> openrouter，因为 anthropic 通过 openrouter 使用）
-        if (provider === "anthropic") {
-          inferredProviders.openrouter = true;
-        } else if (provider === "openai" || provider === "deepseek" || provider === "openrouter") {
-          inferredProviders[provider] = true;
-        }
-      }
-    }
-  }
-
-  return inferredProviders;
 }
 
 /**
  * 解析环境变量中的预设模型配置
  *
  * 【功能说明】
- * 从环境变量 MODELS 读取预设模型列表，解析为对象格式
+ * V1 版本统一使用 OpenRouter，所有模型都通过 OpenRouter 调用
  *
- * 【格式说明】
- * 环境变量格式：MODELS=gpt-4:openai,gpt-3.5-turbo:openai
- * 解析结果：{ 'gpt-4': 'openai', 'gpt-3.5-turbo': 'openai' }
+ * 【预设模型列表】
+ * - anthropic/claude-sonnet-4.5
+ * - anthropic/claude-sonnet-4
+ * - anthropic/claude-3.7-sonnet
+ * - google/gemini-3-pro-preview
+ * - google/gemini-2.5-pro
+ * - openai/gpt-5
+ * - openai/gpt-4.1
+ * - tngtech/deepseek-r1t2-chimera:free
  *
- * 【工作流程】
- * 1. 读取环境变量 MODELS
- * 2. 按逗号分割
- * 3. 按冒号分割每个模型配置
- * 4. 转换为对象
- *
- * @returns {Object<string, string>} 预设模型配置对象 { 模型名: 提供商 }
+ * @returns {Object<string, string>} 预设模型配置对象 { 模型名: 'openrouter' }
  */
 function parsePresetModels() {
-  const modelsEnv = process.env.MODELS || "";
-
-  if (!modelsEnv.trim()) {
-    // 如果没有配置预设模型，返回空对象
-    return {};
-  }
+  // V1 版本预设模型列表（统一使用 OpenRouter）
+  const presetModelList = [
+    "anthropic/claude-sonnet-4.5",
+    "anthropic/claude-sonnet-4",
+    "anthropic/claude-3.7-sonnet",
+    "google/gemini-3-pro-preview",
+    "google/gemini-2.5-pro",
+    "openai/gpt-5",
+    "openai/gpt-4.1",
+    "tngtech/deepseek-r1t2-chimera:free",
+  ];
 
   const models = {};
-  const modelList = modelsEnv
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-
-  for (const modelConfig of modelList) {
-    const [modelName, provider] = modelConfig
-      .split(":")
-      .map((item) => item.trim());
-
-    if (modelName && provider) {
-      // 映射提供商名称（anthropic -> openrouter，因为 anthropic 通过 openrouter 使用）
-      const mappedProvider = provider === "anthropic" ? "openrouter" : provider;
-      models[modelName] = mappedProvider;
-    }
+  for (const modelName of presetModelList) {
+    models[modelName] = "openrouter";
   }
 
   return models;

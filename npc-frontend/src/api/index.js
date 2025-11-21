@@ -131,15 +131,20 @@ async function createApi(mode = null) {
 // 创建默认适配器实例（同步创建 Mock 作为初始值，异步检测后替换）
 let apiInstance = new MockAdapter();
 let isInitialized = false;
+let currentMode = 'mock'; // 当前模式：'mock' | 'http'
 
 // 异步初始化适配器（不阻塞应用启动）
 createApi().then(adapter => {
   apiInstance = adapter;
+  // 判断当前使用的模式
+  currentMode = adapter instanceof HttpAdapter ? 'http' : 'mock';
   isInitialized = true;
+  console.log(`✅ API Adapter initialized: ${currentMode.toUpperCase()} mode`);
 }).catch(error => {
   console.error('Failed to initialize API adapter:', error);
   // 失败时使用 Mock 适配器作为后备
   apiInstance = new MockAdapter();
+  currentMode = 'mock';
   isInitialized = true;
 });
 
@@ -171,11 +176,24 @@ createApi().then(adapter => {
  *   agentId: 'agent_456',
  *   message: '你好'
  * });
+ *
+ * // 查看当前模式
+ * console.log(api.mode); // 'mock' 或 'http'
  */
 const api = new Proxy({}, {
   get(target, prop) {
-    // 如果访问的是适配器的方法（agents, messages, history, sessions）
-    if (prop === 'agents' || prop === 'messages' || prop === 'history' || prop === 'sessions') {
+    // 返回模式信息
+    if (prop === 'mode') {
+      return currentMode;
+    }
+    if (prop === 'baseURL') {
+      return apiInstance.baseURL || 'http://localhost:8000';
+    }
+    if (prop === 'isInitialized') {
+      return isInitialized;
+    }
+    // 如果访问的是适配器的方法（agents, messages, history, sessions, users）
+    if (prop === 'agents' || prop === 'messages' || prop === 'history' || prop === 'sessions' || prop === 'users') {
       return apiInstance[prop];
     }
     // 其他属性直接返回

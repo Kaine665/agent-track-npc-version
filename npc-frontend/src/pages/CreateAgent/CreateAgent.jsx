@@ -16,7 +16,7 @@
  * @created 2025-11-21
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Layout, 
@@ -30,6 +30,7 @@ import {
 } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import api from '../../api';
+import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/Button/Button';
 import Input from '../../components/Input/Input';
 import Card from '../../components/Card/Card';
@@ -40,29 +41,44 @@ const { Option } = Select;
 
 const CreateAgent = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // 模拟当前用户 ID
-  const currentUserId = 'user_123';
+  // 检查登录状态
+  useEffect(() => {
+    if (!user) {
+      message.warning('请先登录');
+      navigate('/agents');
+    }
+  }, [user, navigate]);
 
-  // 支持的模型列表
+  // 支持的模型列表（统一使用 OpenRouter）
   const modelOptions = [
-    { value: 'gpt-4.1', label: 'GPT-4.1 (推荐)' },
-    { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
-    { value: 'claude-3-opus', label: 'Claude 3 Opus' },
-    { value: 'claude-3-sonnet', label: 'Claude 3 Sonnet' },
+    { value: 'anthropic/claude-sonnet-4.5', label: 'Claude Sonnet 4.5 (推荐)' },
+    { value: 'anthropic/claude-sonnet-4', label: 'Claude Sonnet 4' },
+    { value: 'anthropic/claude-3.7-sonnet', label: 'Claude 3.7 Sonnet' },
+    { value: 'google/gemini-3-pro-preview', label: 'Gemini 3 Pro Preview' },
+    { value: 'google/gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+    { value: 'openai/gpt-5', label: 'GPT-5' },
+    { value: 'openai/gpt-4.1', label: 'GPT-4.1' },
+    { value: 'tngtech/deepseek-r1t2-chimera:free', label: 'DeepSeek R1 T2 Chimera (免费)' },
   ];
 
   // 提交表单
   const handleSubmit = async (values) => {
+    if (!user) {
+      message.warning('请先登录');
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
 
       const payload = {
-        userId: currentUserId,
+        userId: user.id,
         ...values,
         // 如果未提供头像，API 会生成默认头像
       };
@@ -71,7 +87,8 @@ const CreateAgent = () => {
 
       if (response.success) {
         message.success('创建成功！');
-        navigate('/agents');
+        // 跳转时传递刷新标志，让列表页知道需要刷新
+        navigate('/agents', { state: { refresh: true } });
       } else {
         throw new Error(response.error?.message || '创建失败');
       }
@@ -111,7 +128,18 @@ const CreateAgent = () => {
 
       {/* 内容区域 */}
       <Content style={{ padding: '24px', maxWidth: 800, margin: '0 auto', width: '100%' }}>
-        <Card bordered={false}>
+        <Card variant="borderless">
+          {/* API 模式提示 */}
+          {api.mode === 'mock' && (
+            <Alert
+              message="当前使用 Mock 模式"
+              description="后端服务未连接，数据仅保存在内存中，刷新页面后会丢失。请确保后端服务已启动（运行在 http://localhost:8000）。"
+              type="warning"
+              showIcon
+              style={{ marginBottom: 24 }}
+            />
+          )}
+          
           {error && (
             <Alert
               message="创建失败"
@@ -128,7 +156,7 @@ const CreateAgent = () => {
             onFinish={handleSubmit}
             initialValues={{
               type: 'general',
-              model: 'gpt-4.1'
+              model: 'anthropic/claude-sonnet-4.5'
             }}
           >
             <Form.Item

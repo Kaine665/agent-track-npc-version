@@ -17,8 +17,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Layout, Typography, Space, Button, Empty, message, Avatar, Dropdown } from 'antd';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Layout, Typography, Space, Button, Empty, message, Avatar, Dropdown, Alert } from 'antd';
 import { PlusOutlined, RobotOutlined, UserOutlined, LogoutOutlined } from '@ant-design/icons';
 import api from '../../api';
 import AgentCard from '../../components/AgentCard/AgentCard';
@@ -31,9 +31,15 @@ const { Title, Text } = Typography;
 
 const AgentList = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout, loading: authLoading } = useAuth();
   const [agents, setAgents] = useState([]);
-  const [loading, setLoading] = useState(false); // 列表加载状态
+  // 初始加载状态：如果用户已登录，应该显示加载状态（避免闪烁）
+  const [loading, setLoading] = useState(() => {
+    // 如果用户已登录，初始状态应该是加载中
+    // 这样在 fetchAgents 执行前不会显示空状态
+    return false; // 初始为 false，在 useEffect 中会根据 user 状态设置
+  });
   const [error, setError] = useState(null);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
@@ -64,11 +70,26 @@ const AgentList = () => {
   // 用户状态改变或页面加载时获取数据
   useEffect(() => {
     if (user) {
+      // 用户已登录，立即设置加载状态，然后获取数据
+      // 这样可以避免在 fetchAgents 执行前显示空状态
+      setLoading(true);
       fetchAgents();
     } else {
-      setAgents([]); // 未登录清空列表
+      // 未登录，清空列表和加载状态
+      setAgents([]);
+      setLoading(false);
+      setError(null);
     }
   }, [user]);
+
+  // 监听路由变化，如果从创建页跳转回来，刷新列表
+  useEffect(() => {
+    if (location.state?.refresh && user) {
+      // 清除路由 state，避免重复刷新
+      window.history.replaceState({}, '');
+      fetchAgents();
+    }
+  }, [location.state, user]);
 
   // 跳转到创建页面
   const handleCreate = () => {
@@ -99,10 +120,12 @@ const AgentList = () => {
 
   // 渲染内容区域
   const renderContent = () => {
+    // 1. 优先检查认证加载状态
     if (authLoading) {
        return <Loading tip="正在检查登录状态..." />;
     }
 
+    // 2. 检查用户登录状态
     if (!user) {
       return (
         <div style={{ textAlign: 'center', marginTop: 60 }}>
@@ -118,10 +141,13 @@ const AgentList = () => {
       );
     }
 
+    // 3. 检查列表加载状态（用户已登录时）
+    // 注意：只有在用户已登录且不在加载中时，才判断是否为空列表
     if (loading) {
       return <Loading tip="加载 NPC 列表中..." />;
     }
 
+    // 4. 检查错误状态
     if (error) {
       return (
         <div style={{ textAlign: 'center', marginTop: 60 }}>
@@ -137,6 +163,8 @@ const AgentList = () => {
       );
     }
 
+    // 5. 检查空列表（只有在加载完成且无错误时才显示）
+    // 确保只有在确实没有数据时才显示空状态
     if (agents.length === 0) {
       return (
         <div style={{ textAlign: 'center', marginTop: 60 }}>
@@ -214,6 +242,17 @@ const AgentList = () => {
 
       {/* 内容区域 */}
       <Content style={{ padding: '24px' }}>
+        {/* API 模式提示 */}
+        {api.mode === 'mock' && (
+          <Alert
+            message="当前使用 Mock 模式"
+            description="后端服务未连接，数据仅保存在内存中。请确保后端服务已启动（运行在 http://localhost:8000）。"
+            type="warning"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+        )}
+        
         {renderContent()}
       </Content>
 

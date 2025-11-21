@@ -169,7 +169,12 @@ const ApiTest = () => {
         }
         style={{ marginBottom: 16 }}
       >
-        {isLoading && <Spin tip="测试中..." />}
+        {isLoading && (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <Spin />
+            <div style={{ marginTop: 8, color: '#666' }}>测试中...</div>
+          </div>
+        )}
         {result && (
           <div>
             {result.success ? (

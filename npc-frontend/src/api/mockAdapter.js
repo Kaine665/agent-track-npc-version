@@ -63,7 +63,19 @@ class MockAdapter extends ApiAdapter {
     create: async (data) => {
       await delay(1000); // 模拟网络延迟
 
-      // 模拟名称重复检查
+      // 确保 userId 存在
+      if (!data.userId) {
+        return {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'userId 不能为空'
+          },
+          timestamp: Date.now()
+        };
+      }
+
+      // 模拟名称重复检查（只检查该用户的 NPC）
       const isDuplicate = mockAgents.some(
         agent => agent.userId === data.userId && agent.name.toLowerCase() === data.name.toLowerCase()
       );
@@ -108,8 +120,11 @@ class MockAdapter extends ApiAdapter {
     getList: async (userId) => {
       await delay(500); // 模拟网络延迟
 
+      // 根据 userId 过滤数据，只返回该用户的 NPC
+      const userAgents = mockAgents.filter(agent => agent.userId === userId);
+
       // 模拟排序：按 lastMessageAt 倒序，如果为 null 则按 createdAt 倒序
-      const sortedAgents = [...mockAgents].sort((a, b) => {
+      const sortedAgents = [...userAgents].sort((a, b) => {
         if (a.lastMessageAt && b.lastMessageAt) {
           return b.lastMessageAt - a.lastMessageAt;
         }

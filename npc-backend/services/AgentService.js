@@ -131,56 +131,19 @@ function validateAgentData(agentData) {
 
   const model = agentData.model.trim();
 
-  // 检查是否是预设模型
-  const presetProvider = getModelProvider(model);
-  const isPresetModel = presetProvider !== undefined;
+  // V1 版本统一使用 OpenRouter，只验证模型是否在预设列表中
+  if (!isValidModel(model)) {
+    return {
+      code: "INVALID_MODEL",
+      message: `不支持的模型：${model}。请使用支持的模型。`,
+    };
+  }
 
-  // 如果是预设模型，provider 可选（从预设模型推断）
-  // 如果是自定义模型，provider 必填
-  if (isPresetModel) {
-    // 预设模型：验证模型有效性
-    if (!isValidModel(model)) {
-      return {
-        code: "INVALID_MODEL",
-        message: `无效的模型选择：${model}`,
-      };
-    }
-
-    // 如果提供了 provider，验证是否匹配
-    if (agentData.provider) {
-      if (!isValidModelProvider(model, agentData.provider)) {
-        return {
-          code: "INVALID_MODEL_PROVIDER",
-          message: `模型 ${model} 的提供商不匹配，应为 ${presetProvider}`,
-        };
-      }
-    }
-  } else {
-    // 自定义模型：provider 必填
-    if (!agentData.provider || typeof agentData.provider !== "string") {
-      return {
-        code: "VALIDATION_ERROR",
-        message: "使用自定义模型时，必须指定提供商（provider）",
-      };
-    }
-
-    const provider = agentData.provider.trim();
-
-    // 验证提供商是否启用
-    if (!isProviderEnabled(provider)) {
-      return {
-        code: "INVALID_PROVIDER",
-        message: `提供商 ${provider} 未启用，请在环境变量中启用`,
-      };
-    }
-
-    // 验证模型和提供商的组合
-    if (!isValidModelProvider(model, provider)) {
-      return {
-        code: "INVALID_MODEL_PROVIDER",
-        message: `模型 ${model} 与提供商 ${provider} 的组合无效`,
-      };
-    }
+  // V1 版本统一使用 OpenRouter，忽略用户提供的 provider（向后兼容）
+  if (agentData.provider && agentData.provider.trim() !== "openrouter") {
+    console.warn(
+      `警告：V1 版本统一使用 OpenRouter，忽略用户提供的 provider: ${agentData.provider}`
+    );
   }
 
   // 验证 avatarUrl（可选）
@@ -251,11 +214,9 @@ function createAgent(agentData) {
     };
   }
 
-  // 确定 provider
+  // V1 版本统一使用 OpenRouter
   const model = agentData.model.trim();
-  const presetProvider = getModelProvider(model);
-  const provider =
-    presetProvider || (agentData.provider ? agentData.provider.trim() : null);
+  const provider = "openrouter"; // 统一使用 OpenRouter
 
   // 创建 Agent
   try {

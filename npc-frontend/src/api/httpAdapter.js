@@ -302,13 +302,13 @@ class HttpAdapter extends ApiAdapter {
       }
 
       // 适配数据格式：后端返回 events 数组，前端需要 messages 数组
-      // 后端格式：{ from: 'user'|'agent', content, timestamp, ... }
+      // 后端格式：{ fromType: 'user'|'agent', content, timestamp, ... }
       // 前端格式：{ role: 'user'|'assistant', content, createdAt, ... }
       const events = response.data.events || [];
       const messages = events.map(event => ({
         id: event.id || `msg_${event.timestamp}`,
         sessionId: event.sessionId,
-        role: event.from === 'user' ? 'user' : 'assistant',
+        role: event.fromType === 'user' ? 'user' : 'assistant',
         content: event.content || '',
         createdAt: event.timestamp || Date.now(),
       }));

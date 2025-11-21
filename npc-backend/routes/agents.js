@@ -9,8 +9,9 @@
  * 【主要功能】
  * 1. POST /api/v1/agents - 创建 NPC
  * 2. GET /api/v1/agents - 获取 NPC 列表
- * 3. 统一响应格式处理
- * 4. 错误处理和状态码设置
+ * 3. GET /api/v1/agents/:id - 获取 NPC 详情
+ * 4. 统一响应格式处理
+ * 5. 错误处理和状态码设置
  *
  * 【工作流程】
  * 接收请求 → 参数解析 → 调用服务层 → 格式化响应 → 返回结果
@@ -193,6 +194,93 @@ router.get("/", (req, res) => {
       500,
       "SYSTEM_ERROR",
       error.message || "获取列表失败，请稍后重试"
+    );
+  }
+});
+
+/**
+ * 获取 NPC 详情
+ *
+ * 【路由】
+ * GET /api/v1/agents/:id?userId=xxx
+ *
+ * 【功能说明】
+ * 获取指定 NPC 的详细信息
+ *
+ * 【路径参数】
+ * - id: NPC ID（必填）
+ *
+ * 【查询参数】
+ * - userId: 用户 ID（必填，用于权限验证）
+ *
+ * 【工作流程】
+ * 1. 获取路径参数 id 和查询参数 userId
+ * 2. 调用服务层查询 Agent
+ * 3. 验证 Agent 是否属于该用户
+ * 4. 返回 Agent 详情
+ *
+ * 【错误处理】
+ * - VALIDATION_ERROR → 400（参数缺失）
+ * - NOT_FOUND → 404（Agent 不存在或不属于该用户）
+ * - SYSTEM_ERROR → 500
+ */
+router.get("/:id", (req, res) => {
+  try {
+    const agentId = req.params.id;
+    const userId = req.query.userId;
+
+    // 验证参数
+    if (!agentId) {
+      return sendErrorResponse(
+        res,
+        400,
+        "VALIDATION_ERROR",
+        "Agent ID 不能为空"
+      );
+    }
+
+    if (!userId) {
+      return sendErrorResponse(
+        res,
+        400,
+        "VALIDATION_ERROR",
+        "userId 参数不能为空"
+      );
+    }
+
+    // 调用服务层获取 Agent
+    const agent = agentService.getAgentById(agentId);
+
+    // 检查 Agent 是否存在
+    if (!agent) {
+      return sendErrorResponse(
+        res,
+        404,
+        "NOT_FOUND",
+        "NPC 不存在"
+      );
+    }
+
+    // 验证 Agent 是否属于该用户
+    // 注意：Agent 对象使用 createdBy 字段存储用户 ID
+    if (agent.createdBy !== userId) {
+      return sendErrorResponse(
+        res,
+        404,
+        "NOT_FOUND",
+        "NPC 不存在"
+      );
+    }
+
+    // 返回成功响应
+    sendSuccessResponse(res, 200, agent);
+  } catch (error) {
+    // 错误处理
+    sendErrorResponse(
+      res,
+      500,
+      "SYSTEM_ERROR",
+      error.message || "获取 NPC 详情失败，请稍后重试"
     );
   }
 });

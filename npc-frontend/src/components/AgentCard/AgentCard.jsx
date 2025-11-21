@@ -81,7 +81,7 @@ const AgentCard = ({ agent, onClick }) => {
       hoverable 
       onClick={() => onClick && onClick(agent.id)}
       style={{ marginBottom: 12, cursor: 'pointer' }}
-      bodyStyle={{ padding: 16 }}
+      styles={{ body: { padding: 16 } }}
     >
       <div style={{ display: 'flex', alignItems: 'center' }}>
         {/* 头像区域 */}
