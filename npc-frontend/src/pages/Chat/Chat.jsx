@@ -31,7 +31,7 @@ const { TextArea } = Input;
 const Chat = () => {
   const { agentId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const messagesEndRef = useRef(null);
   
   // 状态管理
@@ -44,10 +44,33 @@ const Chat = () => {
 
   // 获取数据（NPC 详情和对话历史）
   useEffect(() => {
+    // 等待认证状态加载完成
+    if (authLoading) {
+      return;
+    }
+
+    // 如果用户未登录，显示错误
+    if (!user) {
+      setError('请先登录');
+      setLoading(false);
+      return;
+    }
+
+    // 如果没有 agentId，显示错误
+    if (!agentId) {
+      setError('NPC ID 不能为空');
+      setLoading(false);
+      return;
+    }
+
+    // 定义 fetchData 函数
     const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
+
+        // 调试日志
+        console.log(`[DEBUG] Chat page: Fetching data for agentId=${agentId}, userId=${user.id}, apiMode=${api.mode}`);
 
         // 并行获取 NPC 详情和对话历史
         const [agentRes, historyRes] = await Promise.all([
@@ -55,10 +78,22 @@ const Chat = () => {
           api.history.get(user.id, agentId)
         ]);
 
+        // 调试日志
+        console.log(`[DEBUG] Chat page: agentRes:`, agentRes);
+        console.log(`[DEBUG] Chat page: historyRes:`, historyRes);
+
         if (agentRes.success) {
+          // 调试日志：记录 agent 数据
+          console.log(`[DEBUG] Chat page: Setting agent data:`, agentRes.data);
           setAgent(agentRes.data);
         } else {
-          throw new Error(agentRes.error?.message || '获取 NPC 信息失败');
+          // 根据错误码提供更友好的错误提示
+          const errorCode = agentRes.error?.code;
+          if (errorCode === 'NOT_FOUND') {
+            throw new Error('NPC 不存在或无权访问');
+          } else {
+            throw new Error(agentRes.error?.message || '获取 NPC 信息失败');
+          }
         }
 
         if (historyRes.success) {
@@ -77,10 +112,21 @@ const Chat = () => {
       }
     };
 
-    if (agentId && user) {
-      fetchData();
+    // 等待 API 适配器初始化完成
+    if (!api.isInitialized) {
+      console.log('[DEBUG] Chat page: Waiting for API adapter to initialize...');
+      // 添加初始化完成监听器，初始化完成后直接调用 fetchData
+      const handleInitialized = () => {
+        console.log('[DEBUG] Chat page: API adapter initialized, fetching data...');
+        fetchData();
+      };
+      api.onInitialized(handleInitialized);
+      return;
     }
-  }, [agentId, user]);
+
+    // API 已初始化，直接获取数据
+    fetchData();
+  }, [agentId, user, authLoading]);
 
   // 自动滚动到底部
   const scrollToBottom = () => {
@@ -193,6 +239,19 @@ const Chat = () => {
     );
   }
 
+  // 调试日志：记录渲染时的 agent 状态
+  console.log(`[DEBUG] Chat page render: agent=`, agent, `loading=`, loading, `error=`, error, `messages.length=`, messages.length);
+
+  // 如果 agent 还没有加载完成，显示加载状态
+  if (!agent && !loading && !error) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <Spin size="large" />
+        <div style={{ marginTop: 16, color: '#666' }}>加载 NPC 信息中...</div>
+      </div>
+    );
+  }
+
   return (
     <Layout style={{ height: '100vh', background: '#f5f5f5' }}>
       {/* 顶部导航 */}
@@ -218,9 +277,9 @@ const Chat = () => {
         />
         
         <div style={{ lineHeight: 1.5 }}>
-          <div style={{ fontWeight: 'bold', fontSize: 16 }}>{agent?.name}</div>
+          <div style={{ fontWeight: 'bold', fontSize: 16 }}>{agent?.name || '加载中...'}</div>
           <div style={{ fontSize: 12, color: '#999' }}>
-            {agent?.model} • {agent?.type === 'special' ? '特定角色' : '通用助手'}
+            {agent?.model || '未知模型'} • {agent?.type === 'special' ? '特定角色' : '通用助手'}
           </div>
         </div>
       </Header>

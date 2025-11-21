@@ -26,7 +26,7 @@
  * @created 2025-11-21
  */
 
-import ApiAdapter from './adapter.js';
+import ApiAdapter from "./adapter.js";
 
 /**
  * HTTP API 适配器
@@ -58,7 +58,7 @@ class HttpAdapter extends ApiAdapter {
    * 【功能说明】
    * 从环境变量获取 API 基础路径，默认使用本地开发服务器
    */
-  baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
   /**
    * 发送 HTTP 请求
@@ -82,32 +82,84 @@ class HttpAdapter extends ApiAdapter {
     try {
       // 构建 URL
       let url = `${this.baseURL}${path}`;
-      
+
       // 添加查询参数
       if (params) {
         const queryString = new URLSearchParams(params).toString();
         url += `?${queryString}`;
       }
 
+      // 调试日志：记录请求 URL
+      console.log(`[DEBUG] HTTP Request: ${method} ${url}`);
+
       // 构建请求选项
       const options = {
         method: method.toUpperCase(),
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
+          "Content-Type": "application/json",
+          Accept: "application/json",
         },
       };
 
       // 添加请求体
-      if (data && (method === 'POST' || method === 'PUT')) {
+      if (data && (method === "POST" || method === "PUT")) {
         options.body = JSON.stringify(data);
       }
 
       // 发送请求
       const response = await fetch(url, options);
 
-      // 解析响应
-      const responseData = await response.json();
+      // 获取响应文本（Response 只能读取一次）
+      const responseText = await response.text();
+
+      // 解析响应 JSON
+      let responseData;
+      try {
+        // 检查响应内容类型
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          // 如果不是 JSON 响应，返回错误
+          return {
+            success: false,
+            error: {
+              code: "INVALID_RESPONSE",
+              message: `服务器返回了非 JSON 格式的响应: ${responseText.substring(
+                0,
+                100
+              )}`,
+            },
+            timestamp: Date.now(),
+          };
+        }
+
+        // 解析 JSON
+        responseData = responseText ? JSON.parse(responseText) : {};
+
+        // 调试日志：记录解析后的响应数据
+        console.log(`[DEBUG] HTTP Response parsed:`, {
+          url,
+          status: response.status,
+          ok: response.ok,
+          responseData,
+        });
+      } catch (parseError) {
+        // JSON 解析失败
+        console.error(
+          `[DEBUG] JSON parse error:`,
+          parseError,
+          `Response text:`,
+          responseText
+        );
+        return {
+          success: false,
+          error: {
+            code: "PARSE_ERROR",
+            message: `响应解析失败: ${parseError.message}`,
+            details: responseText.substring(0, 200), // 包含部分响应内容用于调试
+          },
+          timestamp: Date.now(),
+        };
+      }
 
       // 检查 HTTP 状态码
       if (!response.ok) {
@@ -115,8 +167,10 @@ class HttpAdapter extends ApiAdapter {
         return {
           success: false,
           error: {
-            code: responseData.error?.code || 'HTTP_ERROR',
-            message: responseData.error?.message || `HTTP ${response.status}: ${response.statusText}`,
+            code: responseData.error?.code || "HTTP_ERROR",
+            message:
+              responseData.error?.message ||
+              `HTTP ${response.status}: ${response.statusText}`,
             details: responseData.error?.details,
           },
           timestamp: responseData.timestamp || Date.now(),
@@ -128,8 +182,8 @@ class HttpAdapter extends ApiAdapter {
         return {
           success: false,
           error: {
-            code: responseData.error?.code || 'API_ERROR',
-            message: responseData.error?.message || '请求失败',
+            code: responseData.error?.code || "API_ERROR",
+            message: responseData.error?.message || "请求失败",
             details: responseData.error?.details,
           },
           timestamp: responseData.timestamp || Date.now(),
@@ -144,12 +198,12 @@ class HttpAdapter extends ApiAdapter {
       };
     } catch (error) {
       // 网络错误或其他异常
-      console.error('HTTP request error:', error);
+      console.error("HTTP request error:", error);
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: error.message || '网络请求失败，请检查网络连接',
+          code: "NETWORK_ERROR",
+          message: error.message || "网络请求失败，请检查网络连接",
         },
         timestamp: Date.now(),
       };
@@ -167,8 +221,8 @@ class HttpAdapter extends ApiAdapter {
      * @returns {Promise<object>} 创建的 NPC 数据
      */
     create: async (data) => {
-      const response = await this.request('POST', '/api/v1/agents', null, data);
-      
+      const response = await this.request("POST", "/api/v1/agents", null, data);
+
       if (!response.success) {
         return response;
       }
@@ -188,15 +242,15 @@ class HttpAdapter extends ApiAdapter {
      * @returns {Promise<object>} NPC 列表数据
      */
     getList: async (userId) => {
-      const response = await this.request('GET', '/api/v1/agents', { userId });
-      
+      const response = await this.request("GET", "/api/v1/agents", { userId });
+
       if (!response.success) {
         return response;
       }
 
       // 适配数据格式：后端返回的 agents 可能不包含 lastMessagePreview
       // 前端需要这个字段，如果没有则设为 null
-      const agents = (response.data.agents || []).map(agent => ({
+      const agents = (response.data.agents || []).map((agent) => ({
         ...agent,
         lastMessagePreview: agent.lastMessagePreview || null,
       }));
@@ -219,8 +273,18 @@ class HttpAdapter extends ApiAdapter {
      * @returns {Promise<object>} NPC 详情数据
      */
     getById: async (agentId, userId) => {
-      const response = await this.request('GET', `/api/v1/agents/${agentId}`, { userId });
-      
+      // 调试日志
+      console.log(
+        `[DEBUG] Frontend: Calling agents.getById with agentId=${agentId}, userId=${userId}`
+      );
+
+      const response = await this.request("GET", `/api/v1/agents/${agentId}`, {
+        userId,
+      });
+
+      // 调试日志
+      console.log(`[DEBUG] Frontend: agents.getById response:`, response);
+
       if (!response.success) {
         return response;
       }
@@ -255,24 +319,26 @@ class HttpAdapter extends ApiAdapter {
         text: data.message || data.text, // 兼容两种字段名
       };
 
-      const response = await this.request('POST', '/api/v1/messages', null, requestData);
-      
+      const response = await this.request(
+        "POST",
+        "/api/v1/messages",
+        null,
+        requestData
+      );
+
       if (!response.success) {
         return response;
       }
 
       // 适配响应格式：后端返回 event 格式，前端需要 message 格式
-      // 后端返回：{ userEvent, agentEvent, reply }
+      // 后端实际返回：{ eventId, content, timestamp }
       // 前端需要：{ id, role, content, createdAt }
-      const agentEvent = response.data.agentEvent || {};
-      const userEvent = response.data.userEvent || {};
-      
       const message = {
-        id: agentEvent.id || `msg_${Date.now()}`,
-        sessionId: agentEvent.sessionId || userEvent.sessionId || data.sessionId,
-        role: 'assistant',
-        content: agentEvent.content || response.data.reply || '',
-        createdAt: agentEvent.timestamp || Date.now(),
+        id: response.data.eventId || `msg_${Date.now()}`,
+        sessionId: data.sessionId || null, // sessionId 可选，前端可能不需要
+        role: "assistant",
+        content: response.data.content || "",
+        createdAt: response.data.timestamp || Date.now(),
       };
 
       return {
@@ -295,8 +361,11 @@ class HttpAdapter extends ApiAdapter {
      * @returns {Promise<object>} 对话历史数据
      */
     get: async (userId, agentId) => {
-      const response = await this.request('GET', '/api/v1/history', { userId, agentId });
-      
+      const response = await this.request("GET", "/api/v1/history", {
+        userId,
+        agentId,
+      });
+
       if (!response.success) {
         return response;
       }
@@ -305,11 +374,11 @@ class HttpAdapter extends ApiAdapter {
       // 后端格式：{ fromType: 'user'|'agent', content, timestamp, ... }
       // 前端格式：{ role: 'user'|'assistant', content, createdAt, ... }
       const events = response.data.events || [];
-      const messages = events.map(event => ({
+      const messages = events.map((event) => ({
         id: event.id || `msg_${event.timestamp}`,
         sessionId: event.sessionId,
-        role: event.fromType === 'user' ? 'user' : 'assistant',
-        content: event.content || '',
+        role: event.fromType === "user" ? "user" : "assistant",
+        content: event.content || "",
         createdAt: event.timestamp || Date.now(),
       }));
 
@@ -335,8 +404,10 @@ class HttpAdapter extends ApiAdapter {
      * @returns {Promise<object>} 会话列表数据
      */
     getList: async (userId) => {
-      const response = await this.request('GET', '/api/v1/sessions', { userId });
-      
+      const response = await this.request("GET", "/api/v1/sessions", {
+        userId,
+      });
+
       if (!response.success) {
         return response;
       }
@@ -363,7 +434,10 @@ class HttpAdapter extends ApiAdapter {
      * @returns {Promise<object>} 用户信息
      */
     login: async (userId, password) => {
-      const response = await this.request('POST', '/api/v1/users/login', null, { userId, password });
+      const response = await this.request("POST", "/api/v1/users/login", null, {
+        userId,
+        password,
+      });
       return response;
     },
 
@@ -375,7 +449,12 @@ class HttpAdapter extends ApiAdapter {
      * @returns {Promise<object>} 用户信息
      */
     register: async (userId, username, password) => {
-      const response = await this.request('POST', '/api/v1/users/register', null, { userId, username, password });
+      const response = await this.request(
+        "POST",
+        "/api/v1/users/register",
+        null,
+        { userId, username, password }
+      );
       return response;
     },
   };

@@ -37,8 +37,8 @@
  * @created 2025-11-21
  */
 
-import MockAdapter from './mockAdapter.js';
-import HttpAdapter from './httpAdapter.js';
+import MockAdapter from "./mockAdapter.js";
+import HttpAdapter from "./httpAdapter.js";
 
 /**
  * 检测后端服务是否可用
@@ -61,7 +61,7 @@ async function checkBackendAvailable(baseURL) {
     const timeoutId = setTimeout(() => controller.abort(), 2000); // 2秒超时
 
     const response = await fetch(`${baseURL}/api/v1/health`, {
-      method: 'GET',
+      method: "GET",
       signal: controller.signal,
     });
 
@@ -101,29 +101,29 @@ async function checkBackendAvailable(baseURL) {
  */
 async function createApi(mode = null) {
   // 确定使用的模式
-  const apiMode = mode || import.meta.env.VITE_API_MODE || 'auto';
-  const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  const apiMode = mode || import.meta.env.VITE_API_MODE || "auto";
+  const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
   // 如果明确指定模式，直接使用
-  if (apiMode === 'mock') {
-    console.log('🔵 Using Mock API Adapter (forced)');
+  if (apiMode === "mock") {
+    console.log("🔵 Using Mock API Adapter (forced)");
     return new MockAdapter();
   }
 
-  if (apiMode === 'http') {
-    console.log('🟢 Using HTTP API Adapter (forced)');
+  if (apiMode === "http") {
+    console.log("🟢 Using HTTP API Adapter (forced)");
     return new HttpAdapter();
   }
 
   // 自动检测模式：检测后端是否可用
-  console.log('🔍 Auto-detecting backend availability...');
+  console.log("🔍 Auto-detecting backend availability...");
   const isBackendAvailable = await checkBackendAvailable(baseURL);
 
   if (isBackendAvailable) {
-    console.log('✅ Backend is available, using HTTP API Adapter');
+    console.log("✅ Backend is available, using HTTP API Adapter");
     return new HttpAdapter();
   } else {
-    console.log('⚠️ Backend is not available, using Mock API Adapter');
+    console.log("⚠️ Backend is not available, using Mock API Adapter");
     return new MockAdapter();
   }
 }
@@ -131,22 +131,108 @@ async function createApi(mode = null) {
 // 创建默认适配器实例（同步创建 Mock 作为初始值，异步检测后替换）
 let apiInstance = new MockAdapter();
 let isInitialized = false;
-let currentMode = 'mock'; // 当前模式：'mock' | 'http'
+let isWaitingBackend = true; // 是否正在等待后端连接（10秒内）
+let currentMode = "mock"; // 当前模式：'mock' | 'http'
+let initializationListeners = []; // 初始化完成监听器列表
+
+/**
+ * 添加初始化完成监听器
+ * @param {Function} listener - 监听器函数
+ */
+function addInitializationListener(listener) {
+  if (isInitialized) {
+    // 如果已经初始化完成，立即调用监听器
+    listener();
+  } else {
+    // 否则添加到监听器列表
+    initializationListeners.push(listener);
+  }
+}
+
+/**
+ * 通知所有监听器初始化完成
+ */
+function notifyInitializationListeners() {
+  initializationListeners.forEach((listener) => listener());
+  initializationListeners = [];
+}
 
 // 异步初始化适配器（不阻塞应用启动）
-createApi().then(adapter => {
-  apiInstance = adapter;
-  // 判断当前使用的模式
-  currentMode = adapter instanceof HttpAdapter ? 'http' : 'mock';
-  isInitialized = true;
-  console.log(`✅ API Adapter initialized: ${currentMode.toUpperCase()} mode`);
-}).catch(error => {
-  console.error('Failed to initialize API adapter:', error);
-  // 失败时使用 Mock 适配器作为后备
-  apiInstance = new MockAdapter();
-  currentMode = 'mock';
-  isInitialized = true;
-});
+// 策略：先立即检测一次，如果失败则等待 10 秒后再检测
+const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
+// 立即检测后端（快速路径）
+checkBackendAvailable(baseURL)
+  .then((available) => {
+    if (available) {
+      // 后端可用，立即使用 HTTP 适配器
+      isWaitingBackend = false;
+      apiInstance = new HttpAdapter();
+      currentMode = "http";
+      isInitialized = true;
+      console.log("✅ API Adapter initialized: HTTP mode (immediate)");
+      notifyInitializationListeners();
+      return;
+    }
+
+    // 后端不可用，等待 10 秒后再检测
+    setTimeout(() => {
+      isWaitingBackend = false;
+      checkBackendAvailable(baseURL)
+        .then((availableAfterWait) => {
+          if (availableAfterWait) {
+            apiInstance = new HttpAdapter();
+            currentMode = "http";
+          } else {
+            apiInstance = new MockAdapter();
+            currentMode = "mock";
+          }
+          isInitialized = true;
+          console.log(
+            `✅ API Adapter initialized: ${currentMode.toUpperCase()} mode (after 10s wait)`
+          );
+          notifyInitializationListeners();
+        })
+        .catch((error) => {
+          console.error("Failed to check backend after wait:", error);
+          apiInstance = new MockAdapter();
+          currentMode = "mock";
+          isWaitingBackend = false;
+          isInitialized = true;
+          notifyInitializationListeners();
+        });
+    }, 10000); // 10 秒
+  })
+  .catch((error) => {
+    // 立即检测失败，等待 10 秒后再检测
+    console.warn("Initial backend check failed, waiting 10s:", error);
+    setTimeout(() => {
+      isWaitingBackend = false;
+      checkBackendAvailable(baseURL)
+        .then((availableAfterWait) => {
+          if (availableAfterWait) {
+            apiInstance = new HttpAdapter();
+            currentMode = "http";
+          } else {
+            apiInstance = new MockAdapter();
+            currentMode = "mock";
+          }
+          isInitialized = true;
+          console.log(
+            `✅ API Adapter initialized: ${currentMode.toUpperCase()} mode (after 10s wait)`
+          );
+          notifyInitializationListeners();
+        })
+        .catch((error) => {
+          console.error("Failed to initialize API adapter:", error);
+          apiInstance = new MockAdapter();
+          currentMode = "mock";
+          isWaitingBackend = false;
+          isInitialized = true;
+          notifyInitializationListeners();
+        });
+    }, 10000); // 10 秒
+  });
 
 /**
  * API 实例（代理对象）
@@ -180,26 +266,42 @@ createApi().then(adapter => {
  * // 查看当前模式
  * console.log(api.mode); // 'mock' 或 'http'
  */
-const api = new Proxy({}, {
-  get(target, prop) {
-    // 返回模式信息
-    if (prop === 'mode') {
-      return currentMode;
-    }
-    if (prop === 'baseURL') {
-      return apiInstance.baseURL || 'http://localhost:8000';
-    }
-    if (prop === 'isInitialized') {
-      return isInitialized;
-    }
-    // 如果访问的是适配器的方法（agents, messages, history, sessions, users）
-    if (prop === 'agents' || prop === 'messages' || prop === 'history' || prop === 'sessions' || prop === 'users') {
+const api = new Proxy(
+  {},
+  {
+    get(target, prop) {
+      // 返回模式信息
+      if (prop === "mode") {
+        return currentMode;
+      }
+      if (prop === "baseURL") {
+        return apiInstance.baseURL || "http://localhost:8000";
+      }
+      if (prop === "isInitialized") {
+        return isInitialized;
+      }
+      if (prop === "isWaitingBackend") {
+        return isWaitingBackend;
+      }
+      if (prop === "onInitialized") {
+        // 返回一个函数，用于添加初始化完成监听器
+        return addInitializationListener;
+      }
+      // 如果访问的是适配器的方法（agents, messages, history, sessions, users）
+      if (
+        prop === "agents" ||
+        prop === "messages" ||
+        prop === "history" ||
+        prop === "sessions" ||
+        prop === "users"
+      ) {
+        return apiInstance[prop];
+      }
+      // 其他属性直接返回
       return apiInstance[prop];
-    }
-    // 其他属性直接返回
-    return apiInstance[prop];
+    },
   }
-});
+);
 
 export default api;
 

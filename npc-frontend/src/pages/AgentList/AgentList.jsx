@@ -42,6 +42,7 @@ const AgentList = () => {
   });
   const [error, setError] = useState(null);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [showBackendWarning, setShowBackendWarning] = useState(false);
 
   // 获取 NPC 列表
   const fetchAgents = async () => {
@@ -67,20 +68,63 @@ const AgentList = () => {
     }
   };
 
+  // 监听 API 初始化状态，10秒后显示后端未连接警告
+  useEffect(() => {
+    const checkBackendStatus = () => {
+      if (!api.isWaitingBackend && api.mode === 'mock') {
+        setShowBackendWarning(true);
+      } else {
+        setShowBackendWarning(false);
+      }
+    };
+
+    // 立即检查一次
+    checkBackendStatus();
+
+    // 如果正在等待，10秒后再次检查
+    if (api.isWaitingBackend) {
+      const timer = setTimeout(() => {
+        checkBackendStatus();
+      }, 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [api.isWaitingBackend, api.mode]);
+
   // 用户状态改变或页面加载时获取数据
   useEffect(() => {
-    if (user) {
-      // 用户已登录，立即设置加载状态，然后获取数据
-      // 这样可以避免在 fetchAgents 执行前显示空状态
-      setLoading(true);
-      fetchAgents();
-    } else {
+    if (!user) {
       // 未登录，清空列表和加载状态
       setAgents([]);
       setLoading(false);
       setError(null);
+      return;
     }
-  }, [user]);
+
+    // 用户已登录，等待 API 适配器初始化完成后再获取数据
+    if (!api.isInitialized) {
+      console.log('[DEBUG] AgentList: Waiting for API adapter to initialize...');
+      // 添加初始化完成监听器，初始化完成后获取数据
+      const handleInitialized = () => {
+        console.log('[DEBUG] AgentList: API adapter initialized, fetching agents...');
+        setLoading(true);
+        fetchAgents();
+      };
+      api.onInitialized(handleInitialized);
+      return;
+    }
+
+    // API 已初始化，直接获取数据
+    setLoading(true);
+    fetchAgents();
+  }, [user, api.isInitialized]);
+
+  // 监听 API 模式变化，如果从 Mock 切换到 HTTP，重新获取数据
+  useEffect(() => {
+    if (user && api.isInitialized && api.mode === 'http' && agents.length === 0 && !loading && !error) {
+      console.log('[DEBUG] AgentList: API mode changed to HTTP, refetching agents...');
+      fetchAgents();
+    }
+  }, [api.mode, api.isInitialized]);
 
   // 监听路由变化，如果从创建页跳转回来，刷新列表
   useEffect(() => {
@@ -141,7 +185,12 @@ const AgentList = () => {
       );
     }
 
-    // 3. 检查列表加载状态（用户已登录时）
+    // 3. 检查 API 适配器初始化状态（用户已登录时）
+    if (!api.isInitialized || api.isWaitingBackend) {
+      return <Loading tip="正在初始化..." />;
+    }
+
+    // 4. 检查列表加载状态（用户已登录时）
     // 注意：只有在用户已登录且不在加载中时，才判断是否为空列表
     if (loading) {
       return <Loading tip="加载 NPC 列表中..." />;
@@ -242,13 +291,15 @@ const AgentList = () => {
 
       {/* 内容区域 */}
       <Content style={{ padding: '24px' }}>
-        {/* API 模式提示 */}
-        {api.mode === 'mock' && (
+        {/* API 模式提示 - 只在初始化完成后且为 Mock 模式时显示 */}
+        {showBackendWarning && !api.isWaitingBackend && api.isInitialized && (
           <Alert
-            message="当前使用 Mock 模式"
-            description="后端服务未连接，数据仅保存在内存中。请确保后端服务已启动（运行在 http://localhost:8000）。"
+            message="后端服务未连接"
+            description="后端服务未连接，当前使用 Mock 模式。数据仅保存在内存中，刷新页面后会丢失。请确保后端服务已启动（运行在 http://localhost:8000）。"
             type="warning"
             showIcon
+            closable
+            onClose={() => setShowBackendWarning(false)}
             style={{ marginBottom: 16 }}
           />
         )}

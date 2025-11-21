@@ -229,6 +229,9 @@ router.get("/:id", (req, res) => {
     const agentId = req.params.id;
     const userId = req.query.userId;
 
+    // 调试日志：记录请求参数
+    console.log(`[DEBUG] GET /api/v1/agents/:id - agentId: ${agentId}, userId: ${userId}`);
+
     // 验证参数
     if (!agentId) {
       return sendErrorResponse(
@@ -251,8 +254,15 @@ router.get("/:id", (req, res) => {
     // 调用服务层获取 Agent
     const agent = agentService.getAgentById(agentId);
 
+    // 调试日志：记录 Agent 查询结果
+    console.log(`[DEBUG] Agent found: ${agent ? 'yes' : 'no'}, agentId: ${agentId}`);
+    if (agent) {
+      console.log(`[DEBUG] Agent createdBy: ${agent.createdBy}, requested userId: ${userId}`);
+    }
+
     // 检查 Agent 是否存在
     if (!agent) {
+      console.log(`[DEBUG] Agent not found: ${agentId}`);
       return sendErrorResponse(
         res,
         404,
@@ -264,6 +274,7 @@ router.get("/:id", (req, res) => {
     // 验证 Agent 是否属于该用户
     // 注意：Agent 对象使用 createdBy 字段存储用户 ID
     if (agent.createdBy !== userId) {
+      console.log(`[DEBUG] Permission denied: agent.createdBy (${agent.createdBy}) !== userId (${userId})`);
       return sendErrorResponse(
         res,
         404,
@@ -273,6 +284,14 @@ router.get("/:id", (req, res) => {
     }
 
     // 返回成功响应
+    console.log(`[DEBUG] Returning agent: ${agentId}`);
+    console.log(`[DEBUG] Agent data:`, JSON.stringify(agent, null, 2));
+    const responseData = {
+      success: true,
+      data: agent,
+      timestamp: Date.now(),
+    };
+    console.log(`[DEBUG] Response data:`, JSON.stringify(responseData, null, 2));
     sendSuccessResponse(res, 200, agent);
   } catch (error) {
     // 错误处理
