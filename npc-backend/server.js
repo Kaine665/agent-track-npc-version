@@ -34,8 +34,10 @@
  * @lastModified 2025-11-20
  */
 
-// 加载环境变量（必须在其他模块导入之前）
-require("dotenv").config();
+// 加载配置（优先 YAML，回退到 .env）
+// 必须在其他模块导入之前调用
+const configLoader = require("./config/config-loader");
+configLoader.init();
 
 const express = require("express");
 const cors = require("cors");

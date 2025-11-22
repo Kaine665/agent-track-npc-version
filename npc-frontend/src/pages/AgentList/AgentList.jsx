@@ -16,7 +16,7 @@
  * @created 2025-11-21
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Typography, Space, Button, Empty, message, Avatar, Dropdown, Alert } from 'antd';
 import { PlusOutlined, RobotOutlined, UserOutlined, LogoutOutlined } from '@ant-design/icons';
@@ -25,6 +25,7 @@ import AgentCard from '../../components/AgentCard/AgentCard';
 import Loading from '../../components/Loading/Loading';
 import { useAuth } from '../../context/AuthContext';
 import LoginModal from '../../components/LoginModal/LoginModal';
+import styles from './AgentList.module.css';
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
@@ -43,6 +44,8 @@ const AgentList = () => {
   const [error, setError] = useState(null);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [showBackendWarning, setShowBackendWarning] = useState(false);
+  const pollingRef = useRef(null); // 轮询引用
+  const lastFetchTimeRef = useRef(0); // 上次获取数据的时间戳
 
   // 获取 NPC 列表
   const fetchAgents = async () => {
@@ -56,6 +59,7 @@ const AgentList = () => {
       
       if (response.success) {
         setAgents(response.data.agents);
+        lastFetchTimeRef.current = Date.now(); // 更新上次获取时间
       } else {
         throw new Error(response.error?.message || '获取列表失败');
       }
@@ -126,7 +130,7 @@ const AgentList = () => {
     }
   }, [api.mode, api.isInitialized]);
 
-  // 监听路由变化，如果从创建页跳转回来，刷新列表
+  // 监听路由变化，如果从创建页或聊天页跳转回来，刷新列表
   useEffect(() => {
     if (location.state?.refresh && user) {
       // 清除路由 state，避免重复刷新
@@ -134,6 +138,67 @@ const AgentList = () => {
       fetchAgents();
     }
   }, [location.state, user]);
+
+  // 监听路由路径变化，从聊天页返回时刷新列表
+  useEffect(() => {
+    const currentPath = location.pathname;
+    const isFromChat = location.state?.fromChat;
+    
+    // 如果从聊天页返回，刷新列表
+    if (currentPath === '/agents' && isFromChat && user) {
+      // 清除路由 state
+      window.history.replaceState({}, '');
+      fetchAgents();
+    }
+  }, [location.pathname, location.state, user]);
+
+  // 监听页面可见性变化，页面变为可见时刷新列表
+  useEffect(() => {
+    if (!user) return;
+
+    const handleVisibilityChange = () => {
+      // 页面变为可见时，如果距离上次刷新超过 5 秒，则刷新列表
+      const now = Date.now();
+      if (!document.hidden && now - lastFetchTimeRef.current > 5000) {
+        console.log('[DEBUG] AgentList: Page visible, refreshing agent list...');
+        fetchAgents();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 添加轻量级轮询：每 30 秒刷新一次（只在页面可见时）
+  useEffect(() => {
+    if (!user) {
+      // 用户未登录，清除轮询
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+      return;
+    }
+
+    // 设置轮询：每 30 秒刷新一次
+    pollingRef.current = setInterval(() => {
+      // 只在页面可见时刷新
+      if (!document.hidden) {
+        console.log('[DEBUG] AgentList: Polling refresh agent list...');
+        fetchAgents();
+      }
+    }, 30000); // 30 秒
+
+    // 清理函数
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 跳转到创建页面
   const handleCreate = () => {
@@ -230,13 +295,14 @@ const AgentList = () => {
     }
 
     return (
-      <div style={{ maxWidth: 800, margin: '0 auto' }}>
+      <div style={{ maxWidth: 800, margin: '0 auto', width: '100%' }}>
         {/* 创建按钮放在列表顶部 */}
         <Button 
           type="dashed" 
           block 
           icon={<PlusOutlined />} 
           onClick={handleCreate}
+          className={styles.createButton}
           style={{ marginBottom: 16, height: 48, fontSize: 16 }}
         >
           创建新 NPC
@@ -259,38 +325,47 @@ const AgentList = () => {
       {/* 顶部导航栏 */}
       <Header style={{ 
         background: '#fff', 
-        padding: '0 24px', 
+        padding: '0 16px', 
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'space-between',
         boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-        zIndex: 1
+        zIndex: 1,
+        height: 'auto',
+        minHeight: 64,
+        flexWrap: 'wrap'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <RobotOutlined style={{ fontSize: 24, color: '#1890ff', marginRight: 12 }} />
-          <Title level={3} style={{ margin: 0 }}>我的 NPC</Title>
+        <div style={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0 }}>
+          <RobotOutlined style={{ fontSize: 20, color: '#1890ff', marginRight: 8, flexShrink: 0 }} />
+          <Title level={3} style={{ margin: 0, fontSize: 18, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            我的 NPC
+          </Title>
         </div>
         
         {/* 用户信息区域 */}
-        <div>
+        <div style={{ flexShrink: 0 }}>
           {user ? (
             <Dropdown menu={userMenuProps} placement="bottomRight">
               <Space style={{ cursor: 'pointer' }}>
-                <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} />
-                <Text strong>{user.username}</Text>
+                <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#1890ff' }} size="small" />
+                <Text strong className={styles.usernameText}>
+                  {user.username}
+                </Text>
               </Space>
             </Dropdown>
           ) : (
-            <Space>
-              <Button type="primary" onClick={() => setIsLoginModalOpen(true)}>登录</Button>
-              <Button onClick={() => navigate('/register')}>注册</Button>
+            <Space size="small">
+              <Button type="primary" size="small" onClick={() => setIsLoginModalOpen(true)}>登录</Button>
+              <Button size="small" onClick={() => navigate('/register')} className={styles.registerButton}>
+                注册
+              </Button>
             </Space>
           )}
         </div>
       </Header>
 
       {/* 内容区域 */}
-      <Content style={{ padding: '24px' }}>
+      <Content style={{ padding: '16px', paddingBottom: '24px' }}>
         {/* API 模式提示 - 只在初始化完成后且为 Mock 模式时显示 */}
         {showBackendWarning && !api.isWaitingBackend && api.isInitialized && (
           <Alert

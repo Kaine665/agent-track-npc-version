@@ -118,16 +118,13 @@ router.post("/", async (req, res) => {
   try {
     const { userId, agentId, text, contextLimit } = req.body;
 
-    // 调用服务层发送消息（异步）
-    // MessageService.sendMessage 会处理完整的消息发送流程：
+    // 调用服务层发送消息（异步处理，立即返回）
+    // MessageService.sendMessage 现在会：
     // 1. 验证参数
     // 2. 获取或创建 Session
     // 3. 创建用户消息 Event
-    // 4. 获取 Agent 配置
-    // 5. 获取历史事件
-    // 6. 调用 LLM API
-    // 7. 创建 Agent 回复 Event
-    // 8. 返回回复内容
+    // 4. 后台异步处理 LLM 调用和 Agent 回复
+    // 5. 立即返回用户消息 Event ID
     const result = await messageService.sendMessage({
       userId,
       agentId,
@@ -135,7 +132,7 @@ router.post("/", async (req, res) => {
       contextLimit,
     });
 
-    // 返回成功响应
+    // 返回成功响应（包含用户消息 Event ID，前端可以开始轮询）
     sendSuccessResponse(res, 200, result);
   } catch (error) {
     // 错误处理
@@ -153,6 +150,79 @@ router.post("/", async (req, res) => {
     }
 
     sendErrorResponse(res, statusCode, errorCode, errorMessage);
+  }
+});
+
+/**
+ * 检查新消息（用于轮询）
+ *
+ * 【路由】
+ * GET /api/v1/messages/check?sessionId=xxx&lastEventId=xxx
+ *
+ * 【功能说明】
+ * 检查指定会话中是否有新消息（在 lastEventId 之后的消息）
+ * 用于前端轮询获取 Agent 回复
+ *
+ * 【查询参数】
+ * - sessionId: 会话 ID（必填）
+ * - lastEventId: 最后已知的事件 ID（可选，如果不提供则返回所有事件）
+ *
+ * 【响应格式】
+ * {
+ *   "success": true,
+ *   "data": {
+ *     "hasNew": true,
+ *     "events": [
+ *       {
+ *         "id": "event_123",
+ *         "fromType": "agent",
+ *         "content": "回复内容",
+ *         "timestamp": 1703001234567
+ *       }
+ *     ]
+ *   }
+ * }
+ */
+router.get("/check", async (req, res) => {
+  try {
+    const { sessionId, lastEventId } = req.query;
+
+    // 验证参数
+    if (!sessionId || typeof sessionId !== "string" || !sessionId.trim()) {
+      return sendErrorResponse(
+        res,
+        400,
+        "VALIDATION_ERROR",
+        "sessionId 参数不能为空"
+      );
+    }
+
+    // 获取会话的所有事件
+    const eventService = require("../services/EventService");
+    const allEvents = await eventService.getEventsBySession(sessionId.trim());
+
+    // 如果提供了 lastEventId，只返回之后的事件
+    let newEvents = allEvents;
+    if (lastEventId && typeof lastEventId === "string" && lastEventId.trim()) {
+      const lastIndex = allEvents.findIndex(
+        (e) => e.id === lastEventId.trim()
+      );
+      if (lastIndex >= 0) {
+        newEvents = allEvents.slice(lastIndex + 1);
+      }
+    }
+
+    // 返回结果
+    sendSuccessResponse(res, 200, {
+      hasNew: newEvents.length > 0,
+      events: newEvents,
+    });
+  } catch (error) {
+    // 错误处理
+    const errorCode = error.code || "SYSTEM_ERROR";
+    const errorMessage = error.message || "检查新消息失败，请稍后重试";
+
+    sendErrorResponse(res, 500, errorCode, errorMessage);
   }
 });
 

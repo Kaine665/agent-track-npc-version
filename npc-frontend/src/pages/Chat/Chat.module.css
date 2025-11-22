@@ -1,0 +1,50 @@
+/**
+ * ============================================
+ * Chat 页面样式 (Chat.module.css)
+ * ============================================
+ *
+ * 【文件职责】
+ * Chat 页面的响应式样式
+ *
+ * @author AI Assistant
+ * @created 2025-11-22
+ */
+
+/* 移动端优化 */
+@media (max-width: 480px) {
+  .header {
+    padding: 0 12px !important;
+  }
+
+  .avatar {
+    width: 36px !important;
+    height: 36px !important;
+    margin-right: 8px !important;
+  }
+
+  .agentName {
+    font-size: 14px !important;
+  }
+
+  .agentInfo {
+    font-size: 11px !important;
+  }
+
+  .content {
+    padding: 16px 12px !important;
+  }
+
+  .footer {
+    padding: 8px 12px !important;
+  }
+
+  .inputArea {
+    padding: 6px 12px !important;
+    font-size: 14px !important;
+  }
+
+  .sendButton {
+    flex-shrink: 0;
+  }
+}
+

@@ -1,0 +1,38 @@
+/**
+ * ============================================
+ * MessageBubble 组件样式 (MessageBubble.module.css)
+ * ============================================
+ *
+ * 【文件职责】
+ * MessageBubble 组件的响应式样式
+ *
+ * @author AI Assistant
+ * @created 2025-11-22
+ */
+
+/* 移动端优化 */
+@media (max-width: 480px) {
+  .bubble {
+    max-width: 85% !important;
+    padding: 8px 12px !important;
+    font-size: 14px !important;
+  }
+
+  .avatar {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .markdownContent {
+    font-size: 14px !important;
+  }
+
+  .markdownContent :global(pre) {
+    font-size: 12px !important;
+  }
+
+  .markdownContent :global(code) {
+    font-size: 12px !important;
+  }
+}
+

@@ -107,12 +107,12 @@ function sendErrorResponse(res, statusCode, code, message) {
  * - INVALID_MODEL → 400
  * - SYSTEM_ERROR → 500
  */
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const agentData = req.body;
 
     // 调用服务层创建 Agent
-    const agent = agentService.createAgent(agentData);
+    const agent = await agentService.createAgent(agentData);
 
     // 返回成功响应
     sendSuccessResponse(res, 201, agent);
@@ -165,7 +165,7 @@ router.post("/", (req, res) => {
  *   "timestamp": 1703001234567
  * }
  */
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const userId = req.query.userId;
 
@@ -180,7 +180,7 @@ router.get("/", (req, res) => {
     }
 
     // 调用服务层获取列表
-    const agents = agentService.getAgentList(userId);
+    const agents = await agentService.getAgentList(userId);
 
     // 返回成功响应（符合 API 设计文档格式）
     sendSuccessResponse(res, 200, {
@@ -224,7 +224,7 @@ router.get("/", (req, res) => {
  * - NOT_FOUND → 404（Agent 不存在或不属于该用户）
  * - SYSTEM_ERROR → 500
  */
-router.get("/:id", (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
     const agentId = req.params.id;
     const userId = req.query.userId;
@@ -252,7 +252,7 @@ router.get("/:id", (req, res) => {
     }
 
     // 调用服务层获取 Agent
-    const agent = agentService.getAgentById(agentId);
+    const agent = await agentService.getAgentById(agentId);
 
     // 调试日志：记录 Agent 查询结果
     console.log(`[DEBUG] Agent found: ${agent ? 'yes' : 'no'}, agentId: ${agentId}`);

@@ -223,7 +223,7 @@ function validateEventData(eventData) {
  * @returns {Object} 创建的 Event 对象
  * @throws {Object} 错误对象 { code, message }
  */
-function createEvent(eventData) {
+async function createEvent(eventData) {
   // 字段验证
   const validationError = validateEventData(eventData);
   if (validationError) {
@@ -234,7 +234,7 @@ function createEvent(eventData) {
   const agentId = eventData.agentId.trim();
   const agent =
     eventData.fromType === "agent" || eventData.toType === "agent"
-      ? agentService.getAgentById(agentId)
+      ? await agentService.getAgentById(agentId)
       : null;
 
   if (
@@ -249,7 +249,7 @@ function createEvent(eventData) {
 
   // 创建 Event
   try {
-    const event = eventRepository.createEvent({
+    const event = await eventRepository.createEvent({
       sessionId: eventData.sessionId.trim(),
       userId: eventData.userId.trim(),
       agentId: agentId,
@@ -261,7 +261,7 @@ function createEvent(eventData) {
     });
 
     // 更新 Session 活动时间（通过 SessionService）
-    sessionService.updateSessionActivity(event.sessionId);
+    await sessionService.updateSessionActivity(event.sessionId);
 
     return event;
   } catch (error) {
@@ -287,12 +287,12 @@ function createEvent(eventData) {
  * @param {string} sessionId - 会话 ID
  * @returns {Array<Object>} Event 对象数组，按时间升序
  */
-function getEventsBySession(sessionId) {
+async function getEventsBySession(sessionId) {
   if (!sessionId || typeof sessionId !== "string" || !sessionId.trim()) {
     return [];
   }
 
-  return eventRepository.getEventsBySession(sessionId.trim());
+  return await eventRepository.getEventsBySession(sessionId.trim());
 }
 
 /**
@@ -310,7 +310,7 @@ function getEventsBySession(sessionId) {
  * @param {number} limit - 数量限制（默认 20）
  * @returns {Array<Object>} Event 对象数组，按时间升序
  */
-function getRecentEvents(sessionId, limit = 20) {
+async function getRecentEvents(sessionId, limit = 20) {
   if (!sessionId || typeof sessionId !== "string" || !sessionId.trim()) {
     return [];
   }
@@ -319,7 +319,7 @@ function getRecentEvents(sessionId, limit = 20) {
     limit = 20; // 默认值
   }
 
-  return eventRepository.getRecentEvents(sessionId.trim(), limit);
+  return await eventRepository.getRecentEvents(sessionId.trim(), limit);
 }
 
 /**
@@ -331,12 +331,12 @@ function getRecentEvents(sessionId, limit = 20) {
  * @param {string} eventId - Event ID
  * @returns {Object|null} Event 对象，如果不存在则返回 null
  */
-function getEventById(eventId) {
+async function getEventById(eventId) {
   if (!eventId || typeof eventId !== "string") {
     return null;
   }
 
-  return eventRepository.findEventById(eventId);
+  return await eventRepository.findEventById(eventId);
 }
 
 /**
@@ -371,7 +371,7 @@ function getEventById(eventId) {
  * @param {string} agentId - Agent ID
  * @returns {Object|null} 包含 Session 和 events 的对象，如果 Session 不存在则返回 null
  */
-function getHistoryByUserAndAgent(userId, agentId) {
+async function getHistoryByUserAndAgent(userId, agentId) {
   // 验证参数
   if (!userId || typeof userId !== "string" || !userId.trim()) {
     return null;
@@ -387,14 +387,14 @@ function getHistoryByUserAndAgent(userId, agentId) {
   ];
 
   // 查找 Session
-  const session = sessionService.findSessionByParticipants(participants);
+  const session = await sessionService.findSessionByParticipants(participants);
   if (!session) {
     // Session 不存在，返回 null（表示没有对话历史）
     return null;
   }
 
   // 获取该 Session 的所有事件
-  const events = eventRepository.getEventsBySession(session.sessionId);
+  const events = await eventRepository.getEventsBySession(session.sessionId);
 
   // 返回 Session 信息和事件列表
   return {

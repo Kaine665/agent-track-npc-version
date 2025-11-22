@@ -1,0 +1,35 @@
+# ============================================
+# NPC Backend 配置文件
+# ============================================
+# 说明：使用 YAML 格式存储配置，比 .env 更清晰易读
+# 最后更新：2025-11-21
+
+# 服务器配置
+server:
+  port: 8000
+
+# 数据库配置
+database:
+  host: localhost
+  port: 3306
+  user: root
+  password: "j877413fxt"  # ⚠️ 请填写你的 MySQL root 密码
+  name: npc_db
+
+# LLM 提供商配置
+llm:
+  # OpenRouter 配置（推荐，统一使用 OpenRouter）
+  openrouter:
+    enabled: true
+    api_key: "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"
+  
+  # OpenAI 配置（可选）
+  openai:
+    enabled: false
+    api_key: ""
+  
+  # DeepSeek 配置（可选）
+  deepseek:
+    enabled: false
+    api_key: ""
+

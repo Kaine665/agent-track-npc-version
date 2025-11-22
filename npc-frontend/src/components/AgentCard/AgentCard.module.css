@@ -1,0 +1,47 @@
+/**
+ * ============================================
+ * AgentCard 组件样式 (AgentCard.module.css)
+ * ============================================
+ *
+ * 【文件职责】
+ * AgentCard 组件的响应式样式
+ *
+ * @author AI Assistant
+ * @created 2025-11-22
+ */
+
+/* 移动端优化 */
+@media (max-width: 480px) {
+  .cardBody :global(.ant-card-body) {
+    padding: 12px !important;
+  }
+
+  .avatarContainer {
+    margin-right: 12px !important;
+  }
+
+  .avatar {
+    width: 48px !important;
+    height: 48px !important;
+    font-size: 20px !important;
+  }
+
+  .title {
+    font-size: 14px !important;
+  }
+
+  .tag {
+    font-size: 11px !important;
+    padding: 0 6px !important;
+    margin: 0 !important;
+  }
+
+  .timeText {
+    font-size: 11px !important;
+  }
+
+  .previewText {
+    font-size: 12px !important;
+  }
+}
+

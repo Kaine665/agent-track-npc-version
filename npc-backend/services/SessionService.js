@@ -46,10 +46,10 @@ const sessionRepository = require("../repositories/SessionRepository");
  * 3. 返回会话对象
  *
  * @param {Array<{type: string, id: string}>} participants - 参与者列表
- * @returns {Object} Session 对象
+ * @returns {Promise<Object>} Session 对象
  * @throws {Object} 错误对象 { code, message }
  */
-function getOrCreateSession(participants) {
+async function getOrCreateSession(participants) {
   // 验证参与者列表
   if (!Array.isArray(participants) || participants.length === 0) {
     throw {
@@ -76,7 +76,7 @@ function getOrCreateSession(participants) {
 
   // 调用 Repository 获取或创建会话
   try {
-    return sessionRepository.getOrCreateSession(participants);
+    return await sessionRepository.getOrCreateSession(participants);
   } catch (error) {
     throw {
       code: "SYSTEM_ERROR",
@@ -92,14 +92,14 @@ function getOrCreateSession(participants) {
  * 查找指定参与者的会话，如果不存在则返回 null
  *
  * @param {Array<{type: string, id: string}>} participants - 参与者列表
- * @returns {Object|null} Session 对象，如果不存在则返回 null
+ * @returns {Promise<Object|null>} Session 对象，如果不存在则返回 null
  */
-function findSessionByParticipants(participants) {
+async function findSessionByParticipants(participants) {
   if (!Array.isArray(participants) || participants.length === 0) {
     return null;
   }
 
-  return sessionRepository.findSessionByParticipants(participants);
+  return await sessionRepository.findSessionByParticipants(participants);
 }
 
 /**
@@ -114,12 +114,12 @@ function findSessionByParticipants(participants) {
  *
  * @param {string} sessionId - 会话 ID
  */
-function updateSessionActivity(sessionId) {
+async function updateSessionActivity(sessionId) {
   if (!sessionId || typeof sessionId !== "string" || !sessionId.trim()) {
     return; // 静默失败，不影响主流程
   }
 
-  sessionRepository.updateSessionActivity(sessionId.trim());
+  await sessionRepository.updateSessionActivity(sessionId.trim());
 }
 
 /**
@@ -129,14 +129,14 @@ function updateSessionActivity(sessionId) {
  * 查询指定用户参与的所有会话，按最后活动时间倒序排列
  *
  * @param {string} userId - 用户 ID
- * @returns {Array<Object>} Session 对象数组，按最后活动时间倒序
+ * @returns {Promise<Array<Object>>} Session 对象数组，按最后活动时间倒序
  */
-function getSessionsByUser(userId) {
+async function getSessionsByUser(userId) {
   if (!userId || typeof userId !== "string" || !userId.trim()) {
     return [];
   }
 
-  return sessionRepository.findSessionsByUser(userId.trim());
+  return await sessionRepository.findSessionsByUser(userId.trim());
 }
 
 /**
@@ -146,14 +146,14 @@ function getSessionsByUser(userId) {
  * 查询指定 Agent 参与的所有会话，按最后活动时间倒序排列
  *
  * @param {string} agentId - Agent ID
- * @returns {Array<Object>} Session 对象数组，按最后活动时间倒序
+ * @returns {Promise<Array<Object>>} Session 对象数组，按最后活动时间倒序
  */
-function getSessionsByAgent(agentId) {
+async function getSessionsByAgent(agentId) {
   if (!agentId || typeof agentId !== "string" || !agentId.trim()) {
     return [];
   }
 
-  return sessionRepository.findSessionsByAgent(agentId.trim());
+  return await sessionRepository.findSessionsByAgent(agentId.trim());
 }
 
 /**
@@ -163,14 +163,14 @@ function getSessionsByAgent(agentId) {
  * 根据 sessionId 查询 Session
  *
  * @param {string} sessionId - Session ID
- * @returns {Object|null} Session 对象，如果不存在则返回 null
+ * @returns {Promise<Object|null>} Session 对象，如果不存在则返回 null
  */
-function getSessionById(sessionId) {
+async function getSessionById(sessionId) {
   if (!sessionId || typeof sessionId !== "string") {
     return null;
   }
 
-  return sessionRepository.findSessionById(sessionId);
+  return await sessionRepository.findSessionById(sessionId);
 }
 
 module.exports = {

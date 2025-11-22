@@ -4,81 +4,38 @@
  * ============================================
  *
  * 【文件职责】
- * 管理 Session（会话）数据的内存存储和访问操作
+ * 管理 Session（会话）数据的 MySQL 数据库访问操作
  *
  * 【主要功能】
- * 1. 实现中心化存储 + 参与者索引的存储结构
- * 2. 提供 Session 的创建和查询操作
- * 3. 维护索引结构（sessionsByUser、sessionsByAgent）
+ * 1. 提供 Session 的创建和查询操作
+ * 2. 单会话模式：同一参与者组合只有一个会话
+ * 3. 参与者标准化排序
  *
  * 【工作流程】
- * 创建 Session → 存储到 sessionsMap → 更新参与者索引 → 返回结果
+ * 创建 Session → 插入数据库 → 返回结果
+ * 查询 Session → 从数据库查询 → 返回结果
  *
  * 【存储结构】
- * - sessionsMap: Map<sessionId, Session> - 全局 Session 存储（中心化存储）
- * - sessionsByUser: { [userId]: sessionId[] } - 用户关系索引
- * - sessionsByAgent: { [agentId]: sessionId[] } - Agent 关系索引
+ * - 使用 MySQL sessions 表存储
+ * - participants 字段存储为 JSON 格式
  *
  * 【依赖】
- * - 无外部依赖
+ * - config/database.js: 数据库连接和查询方法
  *
  * 【被谁使用】
  * - services/SessionService.js: 调用数据访问方法
  *
  * 【重要说明】
- * - 开发阶段：每次重启清空数据
- * - 未来迁移：可以替换为数据库实现，保持接口不变
+ * - 使用 MySQL 数据库存储
  * - 单会话模式：同一参与者组合只有一个会话
+ * - participants 以 JSON 格式存储，查询时通过 JSON 匹配
  *
  * @author AI Assistant
  * @created 2025-11-20
- * @lastModified 2025-11-20
+ * @lastModified 2025-11-21
  */
 
-/**
- * 全局 Session 存储（中心化存储 - 单一数据源）
- *
- * 【功能说明】
- * 使用 Map 存储所有 Session，key 为 sessionId，value 为 Session 对象
- *
- * 【格式】
- * Map<sessionId, Session>
- */
-const sessionsMap = new Map();
-
-/**
- * 用户关系索引（参与者视角 - 性能优化）
- *
- * 【功能说明】
- * 按用户分组存储 Session ID 列表，用于快速查询用户参与的所有会话
- *
- * 【格式】
- * { [userId]: sessionId[] }
- *
- * 【示例】
- * {
- *   'user_123': ['session_abc123', 'session_xyz789'],
- *   'user_456': ['session_def456']
- * }
- */
-const sessionsByUser = {};
-
-/**
- * Agent 关系索引（参与者视角 - 性能优化）
- *
- * 【功能说明】
- * 按 Agent 分组存储 Session ID 列表，用于快速查询 Agent 参与的所有会话
- *
- * 【格式】
- * { [agentId]: sessionId[] }
- *
- * 【示例】
- * {
- *   'agent_456': ['session_abc123', 'session_def456'],
- *   'agent_789': ['session_xyz789']
- * }
- */
-const sessionsByAgent = {};
+const { query } = require("../config/database");
 
 /**
  * 标准化参与者列表（排序）
@@ -137,52 +94,6 @@ function generateSessionId() {
 }
 
 /**
- * 更新参与者索引
- *
- * 【功能说明】
- * 将 sessionId 添加到指定参与者的索引中
- *
- * @param {Object} participant - 参与者 {type, id}
- * @param {string} sessionId - 会话 ID
- */
-function updateParticipantIndex(participant, sessionId) {
-  if (participant.type === "user") {
-    if (!sessionsByUser[participant.id]) {
-      sessionsByUser[participant.id] = [];
-    }
-    if (!sessionsByUser[participant.id].includes(sessionId)) {
-      sessionsByUser[participant.id].push(sessionId);
-    }
-  } else if (participant.type === "agent") {
-    if (!sessionsByAgent[participant.id]) {
-      sessionsByAgent[participant.id] = [];
-    }
-    if (!sessionsByAgent[participant.id].includes(sessionId)) {
-      sessionsByAgent[participant.id].push(sessionId);
-    }
-  }
-  // 未来扩展：支持更多参与者类型
-  //
-  // 【扩展场景】
-  // 1. bot（机器人）：自动化的对话机器人，可能需要独立的索引 sessionsByBot
-  // 2. system（系统）：系统消息或通知，可能需要独立的索引 sessionsBySystem
-  // 3. group（群组）：群组会话，可能需要独立的索引 sessionsByGroup
-  //
-  // 【扩展步骤】
-  // 1. 在文件顶部添加对应的索引对象（如 sessionsByBot = {}）
-  // 2. 在此函数中添加对应的 else if 分支处理逻辑
-  // 3. 在 findSessionByParticipants() 函数中添加对应的查询逻辑
-  // 4. 在 normalizeParticipants() 函数中确保类型优先级正确（已定义：user=1, agent=2, bot=3, system=4）
-  // 5. 在 rebuildIndexes() 函数中添加重建逻辑
-  // 6. 在 clearAll() 函数中添加清空逻辑
-  //
-  // 【注意事项】
-  // - 保持索引结构的一致性（所有参与者类型都使用 { [id]: sessionId[] } 格式）
-  // - 确保 normalizeParticipants() 中的类型优先级与扩展顺序一致
-  // - 扩展后需要同步更新 SessionService.js 中的参与者类型验证逻辑
-}
-
-/**
  * 查找会话（单会话模式）
  *
  * 【功能说明】
@@ -191,47 +102,41 @@ function updateParticipantIndex(participant, sessionId) {
  *
  * 【工作流程】
  * 1. 标准化参与者列表（排序）
- * 2. 获取每个参与者的会话列表
- * 3. 找到所有列表的交集（共同会话）
- * 4. 返回第一个会话（单会话模式，应该只有一个）
+ * 2. 将参与者列表转换为 JSON 字符串
+ * 3. 在数据库中查询匹配的会话（通过 JSON 匹配）
  *
+ * 【参数说明】
  * @param {Array<{type: string, id: string}>} participants - 参与者列表
- * @returns {Object|null} Session 对象，如果不存在则返回 null
+ * @returns {Promise<Object|null>} Session 对象，如果不存在则返回 null
  */
-function findSessionByParticipants(participants) {
+async function findSessionByParticipants(participants) {
   if (participants.length === 0) return null;
 
   // 1. 标准化参与者列表（排序）
   const normalizedParticipants = normalizeParticipants(participants);
+  const participantsJson = JSON.stringify(normalizedParticipants);
 
-  // 2. 获取每个参与者的会话列表
-  const sessionSets = normalizedParticipants.map((p) => {
-    const sessions =
-      p.type === "user"
-        ? sessionsByUser[p.id] || []
-        : p.type === "agent"
-        ? sessionsByAgent[p.id] || []
-        : [];
-    return new Set(sessions);
-  });
+  // 2. 在数据库中查询匹配的会话
+  // 注意：MySQL 5.7+ 支持 JSON 类型和 JSON 函数
+  // 使用 JSON_CONTAINS 或直接比较 JSON 字符串
+  const sql = `
+    SELECT * FROM sessions 
+    WHERE participants = ?
+    LIMIT 1
+  `;
+  const results = await query(sql, [participantsJson]);
 
-  // 3. 找到所有 Set 的交集（共同会话）
-  if (sessionSets.length === 0) return null;
-
-  let commonSessions = sessionSets[0];
-  for (let i = 1; i < sessionSets.length; i++) {
-    commonSessions = new Set(
-      [...commonSessions].filter((id) => sessionSets[i].has(id))
-    );
+  if (results.length === 0) {
+    return null;
   }
 
-  // 4. 返回第一个会话（单会话模式，应该只有一个）
-  if (commonSessions.size > 0) {
-    const sessionId = [...commonSessions][0];
-    return sessionsMap.get(sessionId);
-  }
-
-  return null;
+  const session = results[0];
+  return {
+    sessionId: session.id,
+    participants: JSON.parse(session.participants),
+    createdAt: session.created_at,
+    lastActiveAt: session.last_active_at,
+  };
 }
 
 /**
@@ -246,18 +151,19 @@ function findSessionByParticipants(participants) {
  * 1. 标准化参与者列表（排序）
  * 2. 尝试查找现有会话
  * 3. 如果不存在，创建新会话
- * 4. 存储到中心化存储
- * 5. 更新每个参与者的索引
+ * 4. 插入数据库
+ * 5. 返回会话对象
  *
+ * 【参数说明】
  * @param {Array<{type: string, id: string}>} participants - 参与者列表
- * @returns {Object} Session 对象
+ * @returns {Promise<Object>} Session 对象
  */
-function getOrCreateSession(participants) {
+async function getOrCreateSession(participants) {
   // 1. 标准化参与者列表（排序）
   const normalizedParticipants = normalizeParticipants(participants);
 
   // 2. 尝试查找现有会话
-  const existingSession = findSessionByParticipants(normalizedParticipants);
+  const existingSession = await findSessionByParticipants(normalizedParticipants);
   if (existingSession) {
     return existingSession; // 返回现有会话
   }
@@ -265,22 +171,21 @@ function getOrCreateSession(participants) {
   // 3. 创建新会话
   const sessionId = generateSessionId();
   const now = Date.now();
-  const session = {
+  const participantsJson = JSON.stringify(normalizedParticipants);
+
+  const sql = `
+    INSERT INTO sessions (id, participants, created_at, last_active_at)
+    VALUES (?, ?, ?, ?)
+  `;
+
+  await query(sql, [sessionId, participantsJson, now, now]);
+
+  return {
     sessionId,
     participants: normalizedParticipants,
     createdAt: now,
     lastActiveAt: now,
   };
-
-  // 4. 存储到中心化存储
-  sessionsMap.set(sessionId, session);
-
-  // 5. 更新每个参与者的索引
-  normalizedParticipants.forEach((participant) => {
-    updateParticipantIndex(participant, sessionId);
-  });
-
-  return session;
 }
 
 /**
@@ -289,13 +194,13 @@ function getOrCreateSession(participants) {
  * 【功能说明】
  * 更新指定会话的最后活动时间
  *
+ * 【参数说明】
  * @param {string} sessionId - 会话 ID
  */
-function updateSessionActivity(sessionId) {
-  const session = sessionsMap.get(sessionId);
-  if (session) {
-    session.lastActiveAt = Date.now();
-  }
+async function updateSessionActivity(sessionId) {
+  const now = Date.now();
+  const sql = `UPDATE sessions SET last_active_at = ? WHERE id = ?`;
+  await query(sql, [now, sessionId]);
 }
 
 /**
@@ -304,17 +209,32 @@ function updateSessionActivity(sessionId) {
  * 【功能说明】
  * 查询指定用户参与的所有会话，按最后活动时间倒序排列
  *
+ * 【工作流程】
+ * 1. 在数据库中查询包含该用户的会话（通过 JSON 查询）
+ * 2. 按最后活动时间倒序排序
+ * 3. 返回会话对象数组
+ *
+ * 【参数说明】
  * @param {string} userId - 用户 ID
- * @returns {Array<Object>} Session 对象数组，按最后活动时间倒序
+ * @returns {Promise<Array<Object>>} Session 对象数组，按最后活动时间倒序
  */
-function findSessionsByUser(userId) {
-  const sessionIds = sessionsByUser[userId] || [];
-  const sessions = sessionIds
-    .map((id) => sessionsMap.get(id))
-    .filter(Boolean) // 过滤掉不存在的 Session
-    .sort((a, b) => b.lastActiveAt - a.lastActiveAt); // 按最后活动时间倒序
+async function findSessionsByUser(userId) {
+  // 使用 JSON_CONTAINS 查询包含指定用户的会话
+  // JSON_CONTAINS(participants, '{"type":"user","id":"user_123"}')
+  const participantJson = JSON.stringify({ type: "user", id: userId });
+  const sql = `
+    SELECT * FROM sessions 
+    WHERE JSON_CONTAINS(participants, ?)
+    ORDER BY last_active_at DESC
+  `;
+  const results = await query(sql, [participantJson]);
 
-  return sessions;
+  return results.map((session) => ({
+    sessionId: session.id,
+    participants: JSON.parse(session.participants),
+    createdAt: session.created_at,
+    lastActiveAt: session.last_active_at,
+  }));
 }
 
 /**
@@ -323,80 +243,81 @@ function findSessionsByUser(userId) {
  * 【功能说明】
  * 查询指定 Agent 参与的所有会话，按最后活动时间倒序排列
  *
+ * 【工作流程】
+ * 1. 在数据库中查询包含该 Agent 的会话（通过 JSON 查询）
+ * 2. 按最后活动时间倒序排序
+ * 3. 返回会话对象数组
+ *
+ * 【参数说明】
  * @param {string} agentId - Agent ID
- * @returns {Array<Object>} Session 对象数组，按最后活动时间倒序
+ * @returns {Promise<Array<Object>>} Session 对象数组，按最后活动时间倒序
  */
-function findSessionsByAgent(agentId) {
-  const sessionIds = sessionsByAgent[agentId] || [];
-  const sessions = sessionIds
-    .map((id) => sessionsMap.get(id))
-    .filter(Boolean) // 过滤掉不存在的 Session
-    .sort((a, b) => b.lastActiveAt - a.lastActiveAt); // 按最后活动时间倒序
+async function findSessionsByAgent(agentId) {
+  // 使用 JSON_CONTAINS 查询包含指定 Agent 的会话
+  const participantJson = JSON.stringify({ type: "agent", id: agentId });
+  const sql = `
+    SELECT * FROM sessions 
+    WHERE JSON_CONTAINS(participants, ?)
+    ORDER BY last_active_at DESC
+  `;
+  const results = await query(sql, [participantJson]);
 
-  return sessions;
+  return results.map((session) => ({
+    sessionId: session.id,
+    participants: JSON.parse(session.participants),
+    createdAt: session.created_at,
+    lastActiveAt: session.last_active_at,
+  }));
 }
 
 /**
  * 通过 ID 查询会话
  *
  * 【功能说明】
- * 根据 sessionId 从 sessionsMap 中查询 Session
+ * 根据 sessionId 从数据库查询 Session
  *
+ * 【参数说明】
  * @param {string} sessionId - Session ID
- * @returns {Object|null} Session 对象，如果不存在则返回 null
+ * @returns {Promise<Object|null>} Session 对象，如果不存在则返回 null
  */
-function findSessionById(sessionId) {
-  return sessionsMap.get(sessionId) || null;
-}
+async function findSessionById(sessionId) {
+  const sql = `SELECT * FROM sessions WHERE id = ?`;
+  const results = await query(sql, [sessionId]);
 
-/**
- * 重建所有索引（从中心化存储）
- *
- * 【功能说明】
- * 从中心化存储重建所有索引
- *
- * 【使用场景】
- * - 系统启动时验证索引一致性
- * - 索引损坏时恢复
- * - 数据迁移时重建索引
- *
- * @returns {void}
- */
-function rebuildIndexes() {
-  // 清空现有索引
-  Object.keys(sessionsByUser).forEach((key) => delete sessionsByUser[key]);
-  Object.keys(sessionsByAgent).forEach((key) => delete sessionsByAgent[key]);
+  if (results.length === 0) {
+    return null;
+  }
 
-  // 从中心化存储重建 Session 索引
-  sessionsMap.forEach((session, sessionId) => {
-    session.participants.forEach((participant) => {
-      updateParticipantIndex(participant, sessionId);
-    });
-  });
+  const session = results[0];
+  return {
+    sessionId: session.id,
+    participants: JSON.parse(session.participants),
+    createdAt: session.created_at,
+    lastActiveAt: session.last_active_at,
+  };
 }
 
 /**
  * 清空所有数据（用于测试或重置）
  *
  * 【功能说明】
- * 清空所有存储的数据和索引
+ * 清空所有 Session 数据
  *
  * 【注意】
- * 开发阶段每次重启会自动清空，此函数主要用于测试
+ * 主要用于测试，生产环境慎用
  */
-function clearAll() {
-  sessionsMap.clear();
-  Object.keys(sessionsByUser).forEach((key) => delete sessionsByUser[key]);
-  Object.keys(sessionsByAgent).forEach((key) => delete sessionsByAgent[key]);
+async function clearAll() {
+  await query("DELETE FROM sessions");
 }
 
 module.exports = {
-  getOrCreateSession,
+  normalizeParticipants,
+  generateSessionId,
   findSessionByParticipants,
-  findSessionById,
+  getOrCreateSession,
   updateSessionActivity,
   findSessionsByUser,
   findSessionsByAgent,
-  rebuildIndexes,
+  findSessionById,
   clearAll,
 };

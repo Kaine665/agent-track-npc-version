@@ -1,0 +1,121 @@
+# ============================================
+# Docker Compose 配置文件
+# ============================================
+# 说明：用于编排所有服务（MySQL、后端、前端、Nginx）
+# 最后更新：2025-11-22
+#
+# 使用方法：
+# 1. 配置环境变量（见 .env.example）
+# 2. 运行：docker-compose up -d
+# 3. 查看日志：docker-compose logs -f
+# 4. 停止服务：docker-compose down
+
+version: '3.8'
+
+services:
+  # ==================== MySQL 数据库 ====================
+  mysql:
+    image: mysql:8.0
+    container_name: npc-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-your_mysql_password}
+      MYSQL_DATABASE: ${DB_NAME:-npc_db}
+      MYSQL_USER: ${DB_USER:-npc_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-your_mysql_password}
+    volumes:
+      # 数据持久化
+      - mysql_data:/var/lib/mysql
+      # 初始化脚本（可选）
+      - ./npc-backend/migrations:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    networks:
+      - npc-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-your_mysql_password}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== 后端服务 ====================
+  backend:
+    build:
+      context: ./npc-backend
+      dockerfile: Dockerfile
+    container_name: npc-backend
+    restart: unless-stopped
+    environment:
+      # 服务器配置
+      NODE_ENV: production
+      PORT: 8000
+      # 数据库配置（连接到 MySQL 服务）
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-root}
+      DB_PASSWORD: ${DB_PASSWORD:-your_mysql_password}
+      DB_NAME: ${DB_NAME:-npc_db}
+      # LLM 配置
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - npc-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8000/api/v1/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ==================== 前端服务 ====================
+  frontend:
+    build:
+      context: ./npc-frontend
+      dockerfile: Dockerfile
+      args:
+        # 构建时传入 API 地址（用于前端构建）
+        VITE_API_BASE_URL: ${FRONTEND_API_URL:-http://localhost:8000}
+        VITE_API_MODE: http
+    container_name: npc-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - backend
+    networks:
+      - npc-network
+
+  # ==================== Nginx 反向代理 ====================
+  nginx:
+    image: nginx:alpine
+    container_name: npc-nginx
+    restart: unless-stopped
+    volumes:
+      # Nginx 配置文件
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - npc-network
+
+# ==================== 网络配置 ====================
+networks:
+  npc-network:
+    driver: bridge
+
+# ==================== 数据卷配置 ====================
+volumes:
+  mysql_data:
+    driver: local
+

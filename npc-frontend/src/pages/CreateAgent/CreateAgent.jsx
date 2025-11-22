@@ -34,6 +34,7 @@ import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/Button/Button';
 import Input from '../../components/Input/Input';
 import Card from '../../components/Card/Card';
+import styles from './CreateAgent.module.css';
 
 const { Header, Content } = Layout;
 const { Title } = Typography;
@@ -109,25 +110,27 @@ const CreateAgent = () => {
   return (
     <Layout style={{ minHeight: '100vh', background: '#f5f5f5' }}>
       {/* 顶部导航栏 */}
-      <Header style={{ 
+      <Header className={styles.header} style={{ 
         background: '#fff', 
         padding: '0 24px', 
         display: 'flex', 
         alignItems: 'center', 
         boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-        zIndex: 1
+        zIndex: 1,
+        height: 'auto',
+        minHeight: 64
       }}>
         <Button 
           type="text" 
           icon={<ArrowLeftOutlined />} 
           onClick={handleCancel}
-          style={{ marginRight: 16 }}
+          style={{ marginRight: 16, flexShrink: 0 }}
         />
-        <Title level={4} style={{ margin: 0 }}>创建新 NPC</Title>
+        <Title level={4} className={styles.title} style={{ margin: 0 }}>创建新 NPC</Title>
       </Header>
 
       {/* 内容区域 */}
-      <Content style={{ padding: '24px', maxWidth: 800, margin: '0 auto', width: '100%' }}>
+      <Content className={styles.content} style={{ padding: '24px', maxWidth: 800, margin: '0 auto', width: '100%' }}>
         <Card variant="borderless">
           {/* API 模式提示 */}
           {api.mode === 'mock' && (
@@ -185,16 +188,14 @@ const CreateAgent = () => {
               label="人设描述 (System Prompt)"
               name="systemPrompt"
               rules={[
-                { required: true, message: '请输入人设描述' },
-                { min: 10, message: '描述至少需要 10 个字符' },
                 { max: 5000, message: '描述不能超过 5000 个字符' }
               ]}
-              help="详细描述 NPC 的性格、能力和行为方式"
+              help="可选：详细描述 NPC 的性格、能力和行为方式。如果不填写，将使用默认行为。"
             >
               <Input 
                 type="textarea" 
                 rows={6} 
-                placeholder="你是一位专业的学习教练，擅长..." 
+                placeholder="可选：你是一位专业的学习教练，擅长..." 
                 maxLength={5000} 
                 showCount 
               />

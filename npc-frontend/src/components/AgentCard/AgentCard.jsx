@@ -25,6 +25,7 @@ import PropTypes from 'prop-types';
 import { Avatar, Tag, Typography, Space } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
 import Card from '../Card/Card';
+import styles from './AgentCard.module.css';
 
 const { Text, Title } = Typography;
 
@@ -59,6 +60,60 @@ const formatTime = (timestamp) => {
   return date.toLocaleDateString();
 };
 
+/**
+ * 清理 Markdown 文本，提取纯文本预览
+ * @param {string} markdown - Markdown 文本
+ * @param {number} maxLength - 最大长度（默认 50）
+ * @returns {string} 清理后的纯文本
+ */
+const cleanMarkdownPreview = (markdown, maxLength = 50) => {
+  if (!markdown) return '';
+  
+  let text = markdown;
+  
+  // 移除代码块（```code```）
+  text = text.replace(/```[\s\S]*?```/g, '');
+  
+  // 移除行内代码（`code`）
+  text = text.replace(/`([^`]+)`/g, '$1');
+  
+  // 移除链接（[text](url) -> text）
+  text = text.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1');
+  
+  // 移除图片（![alt](url) -> alt）
+  text = text.replace(/!\[([^\]]*)\]\([^\)]+\)/g, '$1');
+  
+  // 移除粗体和斜体标记（**text** -> text, *text* -> text）
+  text = text.replace(/\*\*([^\*]+)\*\*/g, '$1');
+  text = text.replace(/\*([^\*]+)\*/g, '$1');
+  text = text.replace(/__([^_]+)__/g, '$1');
+  text = text.replace(/_([^_]+)_/g, '$1');
+  
+  // 移除标题标记（# text -> text）
+  text = text.replace(/^#{1,6}\s+/gm, '');
+  
+  // 移除引用标记（> text -> text）
+  text = text.replace(/^>\s+/gm, '');
+  
+  // 移除列表标记（- item -> item, 1. item -> item）
+  text = text.replace(/^[\s]*[-*+]\s+/gm, '');
+  text = text.replace(/^[\s]*\d+\.\s+/gm, '');
+  
+  // 移除表格标记（|）
+  text = text.replace(/\|/g, ' ');
+  
+  // 移除多余的空行和空白
+  text = text.replace(/\n{3,}/g, '\n\n');
+  text = text.replace(/^\s+|\s+$/g, '');
+  
+  // 限制长度
+  if (text.length > maxLength) {
+    text = text.substring(0, maxLength).trim() + '...';
+  }
+  
+  return text;
+};
+
 const AgentCard = ({ agent, onClick }) => {
   const { name, type, avatarUrl, lastMessageAt, lastMessagePreview } = agent;
 
@@ -81,40 +136,46 @@ const AgentCard = ({ agent, onClick }) => {
       hoverable 
       onClick={() => onClick && onClick(agent.id)}
       style={{ marginBottom: 12, cursor: 'pointer' }}
-      styles={{ body: { padding: 16 } }}
+      styles={{ 
+        body: { 
+          padding: 16 
+        } 
+      }}
+      className={styles.cardBody}
     >
       <div style={{ display: 'flex', alignItems: 'center' }}>
         {/* 头像区域 */}
-        <div style={{ marginRight: 16 }}>
+        <div style={{ marginRight: 16, flexShrink: 0 }} className={styles.avatarContainer}>
           <Avatar 
             size={60} 
             src={avatarUrl} 
             icon={<UserOutlined />} 
             style={{ backgroundColor: '#fde3cf', verticalAlign: 'middle' }}
+            className={styles.avatar}
           />
         </div>
 
         {/* 信息区域 */}
-        <div style={{ flex: 1, overflow: 'hidden' }}>
+        <div style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
           {/* 顶部：名称、标签、时间 */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <Space size={8} style={{ overflow: 'hidden', flex: 1 }}>
-              <Title level={5} style={{ margin: 0 }} ellipsis>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4, gap: 8 }}>
+            <Space size={6} style={{ overflow: 'hidden', flex: 1, minWidth: 0 }} wrap={false}>
+              <Title level={5} style={{ margin: 0 }} ellipsis className={styles.title}>
                 {name}
               </Title>
-              <Tag color={typeColors[type] || typeColors.default}>
+              <Tag color={typeColors[type] || typeColors.default} className={styles.tag}>
                 {typeNames[type] || typeNames.default}
               </Tag>
             </Space>
-            <Text type="secondary" style={{ fontSize: 12, marginLeft: 8, flexShrink: 0 }}>
+            <Text type="secondary" className={styles.timeText}>
               {formatTime(lastMessageAt)}
             </Text>
           </div>
 
           {/* 底部：最后消息预览 */}
           <div style={{ display: 'flex' }}>
-            <Text type="secondary" style={{ fontSize: 13 }} ellipsis>
-              {lastMessagePreview || '暂无对话记录'}
+            <Text type="secondary" ellipsis className={styles.previewText}>
+              {lastMessagePreview ? cleanMarkdownPreview(lastMessagePreview, 60) : '暂无对话记录'}
             </Text>
           </div>
         </div>

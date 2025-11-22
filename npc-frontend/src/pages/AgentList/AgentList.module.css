@@ -1,0 +1,31 @@
+/**
+ * ============================================
+ * AgentList 页面样式 (AgentList.module.css)
+ * ============================================
+ *
+ * 【文件职责】
+ * AgentList 页面的响应式样式
+ *
+ * @author AI Assistant
+ * @created 2025-11-22
+ */
+
+/* 用户名在小屏时隐藏 */
+@media (max-width: 480px) {
+  .usernameText {
+    display: none !important;
+  }
+
+  .registerButton {
+    display: none !important;
+  }
+}
+
+/* 创建按钮移动端优化 */
+@media (max-width: 480px) {
+  .createButton {
+    height: 44px !important;
+    font-size: 14px !important;
+  }
+}
+

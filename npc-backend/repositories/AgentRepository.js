@@ -4,90 +4,38 @@
  * ============================================
  *
  * 【文件职责】
- * 管理 Agent 数据的内存存储和访问操作
+ * 管理 Agent 数据的 MySQL 数据库访问操作
  *
  * 【主要功能】
- * 1. 实现方案 C 的存储结构（独立存储 + 用户关系索引）
- * 2. 提供 Agent 的 CRUD 操作
- * 3. 维护索引结构（agentsByUser、userNameIndex）
+ * 1. 提供 Agent 的 CRUD 操作
+ * 2. 查询用户的所有 Agent（按创建时间倒序）
+ * 3. 检查名称唯一性（同一用户下）
  * 4. 生成 Agent ID
  *
  * 【工作流程】
- * 创建 Agent → 存储到 agentsMap → 更新索引 → 返回结果
+ * 创建 Agent → 插入数据库 → 返回结果
+ * 查询 Agent → 从数据库查询 → 返回结果
  *
  * 【存储结构】
- * - agentsMap: Map<agentId, Agent> - 全局 Agent 存储
- * - agentsByUser: { [userId]: agentId[] } - 用户关系索引
- * - userNameIndex: { [userId]: { [name]: agentId } } - 用户名称索引
+ * - 使用 MySQL agents 表存储
+ * - 通过索引优化查询性能（user_id, created_at）
  *
  * 【依赖】
- * - 无外部依赖
+ * - config/database.js: 数据库连接和查询方法
  *
  * 【被谁使用】
  * - services/AgentService.js: 调用数据访问方法
  *
  * 【重要说明】
- * - 开发阶段：每次重启清空数据
- * - 未来迁移：可以替换为数据库实现，保持接口不变
+ * - 使用 MySQL 数据库存储
+ * - 支持用户数据隔离（通过 user_id 索引）
  *
  * @author AI Assistant
  * @created 2025-11-20
- * @lastModified 2025-11-20
+ * @lastModified 2025-11-21
  */
 
-/**
- * 全局 Agent 存储
- *
- * 【功能说明】
- * 使用 Map 存储所有 Agent，key 为 agentId，value 为 Agent 对象
- *
- * 【格式】
- * Map<agentId, Agent>
- */
-const agentsMap = new Map();
-
-/**
- * 用户关系索引
- *
- * 【功能说明】
- * 按用户分组存储 Agent ID 列表，用于快速查询用户的所有 Agent
- *
- * 【格式】
- * { [userId]: agentId[] }
- *
- * 【示例】
- * {
- *   'user_1': ['agent_123', 'agent_456'],
- *   'user_2': ['agent_789']
- * }
- */
-const agentsByUser = {};
-
-/**
- * 用户名称索引
- *
- * 【功能说明】
- * 按用户和名称建立索引，用于快速检查名称唯一性（O(1) 查询）
- *
- * 【格式】
- * { [userId]: { [name]: agentId } }
- *
- * 【示例】
- * {
- *   'user_1': {
- *     '学习教练': 'agent_123',
- *     '心理顾问': 'agent_456'
- *   }
- * }
- *
- * 【状态说明】
- * ⚠️ 当前阶段不使用：虽然已实现，但当前阶段不使用此索引
- * - 原因：单个用户的 Agent 数量不会太多，遍历 agentsByUser 的性能开销可接受
- * - 当前实现：使用 agentsByUser 遍历检查名称唯一性（O(n) 查询，n 为用户拥有的 Agent 数量）
- * - 未来扩展：如果用户 Agent 数量增加，可以启用此索引以获得 O(1) 查询性能
- * - 代码保留：保留此索引的创建和维护代码，以便未来需要时快速启用
- */
-const userNameIndex = {};
+const { query } = require("../config/database");
 
 /**
  * 生成 Agent ID
@@ -115,15 +63,15 @@ function generateId() {
  * 创建 Agent
  *
  * 【功能说明】
- * 创建新的 Agent 并存储到内存中，同时维护所有索引
+ * 创建新的 Agent 并保存到数据库
  *
  * 【工作流程】
  * 1. 生成 Agent ID
  * 2. 创建 Agent 对象（添加时间戳）
- * 3. 存储到 agentsMap
- * 4. 更新 agentsByUser 索引
- * 5. 更新 userNameIndex 索引
+ * 3. 插入数据库
+ * 4. 返回 Agent 对象
  *
+ * 【参数说明】
  * @param {Object} agentData - Agent 数据
  * @param {string} agentData.createdBy - 创建者用户 ID
  * @param {string} agentData.name - Agent 名称
@@ -132,58 +80,84 @@ function generateId() {
  * @param {string} [agentData.provider] - LLM 提供商（可选，预设模型会自动推断）
  * @param {string} agentData.systemPrompt - 人设描述
  * @param {string} [agentData.avatarUrl] - 头像 URL（可选）
- * @returns {Object} 创建的 Agent 对象
+ * @returns {Promise<Object>} 创建的 Agent 对象
+ *
+ * 【错误处理】
+ * - 名称重复 → 抛出数据库错误（由 Service 层处理）
+ * - 数据库错误 → 抛出异常
  */
-function create(agentData) {
+async function create(agentData) {
   const agentId = generateId();
   const now = Date.now();
 
-  const agent = {
+  const sql = `
+    INSERT INTO agents (
+      id, user_id, name, type, model, provider, system_prompt, avatar_url, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  await query(sql, [
+    agentId,
+    agentData.createdBy,
+    agentData.name,
+    agentData.type,
+    agentData.model,
+    agentData.provider || null,
+    agentData.systemPrompt,
+    agentData.avatarUrl || null,
+    now,
+    now,
+  ]);
+
+  return {
     id: agentId,
     createdBy: agentData.createdBy,
     name: agentData.name,
     type: agentData.type,
     model: agentData.model,
-    provider: agentData.provider || null, // 提供商（预设模型自动推断，自定义模型必填）
+    provider: agentData.provider || null,
     systemPrompt: agentData.systemPrompt,
     avatarUrl: agentData.avatarUrl || null,
     createdAt: now,
     updatedAt: now,
   };
-
-  // 存储到全局 Map
-  agentsMap.set(agentId, agent);
-
-  // 更新用户关系索引
-  const userId = agentData.createdBy;
-  if (!agentsByUser[userId]) {
-    agentsByUser[userId] = [];
-  }
-  agentsByUser[userId].push(agentId);
-
-  // 更新用户名称索引（⚠️ 当前阶段不使用，但保留代码以便未来启用）
-  // 当前阶段：虽然创建和维护索引，但不用于查询（checkNameExists 使用遍历方式）
-  // 未来扩展：如果用户 Agent 数量增加，可以启用此索引以获得 O(1) 查询性能
-  if (!userNameIndex[userId]) {
-    userNameIndex[userId] = {};
-  }
-  const nameKey = agentData.name.toLowerCase();
-  userNameIndex[userId][nameKey] = agentId;
-
-  return agent;
 }
 
 /**
  * 通过 ID 查询 Agent
  *
  * 【功能说明】
- * 根据 agentId 从 agentsMap 中查询 Agent
+ * 根据 agentId 从数据库查询 Agent
  *
+ * 【工作流程】
+ * 1. 执行 SQL 查询
+ * 2. 返回 Agent 对象或 null
+ *
+ * 【参数说明】
  * @param {string} agentId - Agent ID
- * @returns {Object|null} Agent 对象，如果不存在则返回 null
+ * @returns {Promise<Object|null>} Agent 对象，如果不存在则返回 null
  */
-function findById(agentId) {
-  return agentsMap.get(agentId) || null;
+async function findById(agentId) {
+  const sql = `SELECT * FROM agents WHERE id = ?`;
+  const results = await query(sql, [agentId]);
+
+  if (results.length === 0) {
+    return null;
+  }
+
+  const agent = results[0];
+  return {
+    id: agent.id,
+    createdBy: agent.user_id,
+    name: agent.name,
+    type: agent.type,
+    model: agent.model,
+    provider: agent.provider || null, // 从数据库读取 provider
+    systemPrompt: agent.system_prompt,
+    avatarUrl: agent.avatar_url,
+    createdAt: agent.created_at,
+    updatedAt: agent.updated_at,
+  };
 }
 
 /**
@@ -193,21 +167,34 @@ function findById(agentId) {
  * 根据 userId 查询该用户创建的所有 Agent，按创建时间倒序排列
  *
  * 【工作流程】
- * 1. 从 agentsByUser 索引获取该用户的 Agent ID 列表
- * 2. 根据 ID 列表从 agentsMap 获取 Agent 对象
- * 3. 按创建时间倒序排序
+ * 1. 执行 SQL 查询（使用 user_id 索引）
+ * 2. 按创建时间倒序排序
+ * 3. 返回 Agent 对象数组
  *
+ * 【参数说明】
  * @param {string} userId - 用户 ID
- * @returns {Array<Object>} Agent 对象数组，按创建时间倒序
+ * @returns {Promise<Array<Object>>} Agent 对象数组，按创建时间倒序
  */
-function findByUserId(userId) {
-  const agentIds = agentsByUser[userId] || [];
-  const agents = agentIds
-    .map((id) => agentsMap.get(id))
-    .filter(Boolean) // 过滤掉不存在的 Agent
-    .sort((a, b) => b.createdAt - a.createdAt); // 按创建时间倒序
+async function findByUserId(userId) {
+  const sql = `
+    SELECT * FROM agents 
+    WHERE user_id = ? 
+    ORDER BY created_at DESC
+  `;
+  const results = await query(sql, [userId]);
 
-  return agents;
+  return results.map((agent) => ({
+    id: agent.id,
+    createdBy: agent.user_id,
+    name: agent.name,
+    type: agent.type,
+    model: agent.model,
+    provider: agent.provider || null, // 从数据库读取 provider
+    systemPrompt: agent.system_prompt,
+    avatarUrl: agent.avatar_url,
+    createdAt: agent.created_at,
+    updatedAt: agent.updated_at,
+  }));
 }
 
 /**
@@ -217,38 +204,23 @@ function findByUserId(userId) {
  * 检查指定用户是否已存在相同名称的 Agent（不区分大小写）
  *
  * 【工作流程】
- * 1. 从 agentsByUser 获取该用户的所有 Agent ID
- * 2. 遍历 Agent 列表，检查名称（转小写）是否已存在
+ * 1. 执行 SQL 查询（使用 LOWER 函数进行大小写不敏感比较）
+ * 2. 返回是否存在
  *
- * 【性能说明】
- * - 时间复杂度：O(n)，n 为用户拥有的 Agent 数量
- * - 当前阶段：单个用户的 Agent 数量不会太多，此性能开销可接受
- * - 未来优化：如果用户 Agent 数量增加，可以启用 userNameIndex 以获得 O(1) 查询性能
- *
+ * 【参数说明】
  * @param {string} userId - 用户 ID
  * @param {string} name - Agent 名称
- * @returns {boolean} 名称是否已存在
+ * @returns {Promise<boolean>} 名称是否已存在
  */
-function checkNameExists(userId, name) {
-  // ⚠️ 当前实现：使用遍历方式检查名称唯一性（不使用 userNameIndex）
-  // 原因：单个用户的 Agent 数量不会太多，遍历性能开销可接受
-  // 未来扩展：如果用户 Agent 数量增加，可以启用 userNameIndex 以获得 O(1) 查询性能
-  // 启用方式：将下面的遍历逻辑替换为：
-  //   const userNames = userNameIndex[userId] || {};
-  //   const nameKey = name.toLowerCase();
-  //   return nameKey in userNames;
+async function checkNameExists(userId, name) {
+  const sql = `
+    SELECT COUNT(*) as count 
+    FROM agents 
+    WHERE user_id = ? AND LOWER(name) = LOWER(?)
+  `;
+  const results = await query(sql, [userId, name]);
 
-  const agentIds = agentsByUser[userId] || [];
-  const nameKey = name.toLowerCase();
-
-  for (const agentId of agentIds) {
-    const agent = agentsMap.get(agentId);
-    if (agent && agent.name.toLowerCase() === nameKey) {
-      return true;
-    }
-  }
-
-  return false;
+  return results[0].count > 0;
 }
 
 /**
@@ -258,93 +230,61 @@ function checkNameExists(userId, name) {
  * 如果名称已存在，返回已存在的 Agent ID（用于错误提示）
  *
  * 【工作流程】
- * 1. 从 agentsByUser 获取该用户的所有 Agent ID
- * 2. 遍历 Agent 列表，查找名称（转小写）匹配的 Agent
+ * 1. 执行 SQL 查询（使用 LOWER 函数进行大小写不敏感比较）
+ * 2. 返回第一个匹配的 Agent ID 或 null
  *
- * 【性能说明】
- * - 时间复杂度：O(n)，n 为用户拥有的 Agent 数量
- * - 当前阶段：单个用户的 Agent 数量不会太多，此性能开销可接受
- * - 未来优化：如果用户 Agent 数量增加，可以启用 userNameIndex 以获得 O(1) 查询性能
- *
+ * 【参数说明】
  * @param {string} userId - 用户 ID
  * @param {string} name - Agent 名称
- * @returns {string|null} 已存在的 Agent ID，如果不存在则返回 null
+ * @returns {Promise<string|null>} 已存在的 Agent ID，如果不存在则返回 null
  */
-function getExistingAgentIdByName(userId, name) {
-  // ⚠️ 当前实现：使用遍历方式查找名称冲突（不使用 userNameIndex）
-  // 原因：单个用户的 Agent 数量不会太多，遍历性能开销可接受
-  // 未来扩展：如果用户 Agent 数量增加，可以启用 userNameIndex 以获得 O(1) 查询性能
-  // 启用方式：将下面的遍历逻辑替换为：
-  //   const userNames = userNameIndex[userId] || {};
-  //   const nameKey = name.toLowerCase();
-  //   return userNames[nameKey] || null;
+async function getExistingAgentIdByName(userId, name) {
+  const sql = `
+    SELECT id 
+    FROM agents 
+    WHERE user_id = ? AND LOWER(name) = LOWER(?)
+    LIMIT 1
+  `;
+  const results = await query(sql, [userId, name]);
 
-  const agentIds = agentsByUser[userId] || [];
-  const nameKey = name.toLowerCase();
-
-  for (const agentId of agentIds) {
-    const agent = agentsMap.get(agentId);
-    if (agent && agent.name.toLowerCase() === nameKey) {
-      return agentId;
-    }
+  if (results.length === 0) {
+    return null;
   }
 
-  return null;
+  return results[0].id;
 }
 
 /**
  * 删除 Agent（可选功能，当前阶段不需要）
  *
  * 【功能说明】
- * 删除指定的 Agent，同时清理所有相关索引
+ * 删除指定的 Agent
  *
  * 【注意】
  * 当前阶段不需要删除功能，但可以预留接口
  *
+ * 【参数说明】
  * @param {string} agentId - Agent ID
- * @returns {boolean} 是否删除成功
+ * @returns {Promise<boolean>} 是否删除成功
  */
-function remove(agentId) {
-  const agent = agentsMap.get(agentId);
-  if (!agent) {
-    return false;
-  }
+async function remove(agentId) {
+  const sql = `DELETE FROM agents WHERE id = ?`;
+  const results = await query(sql, [agentId]);
 
-  const userId = agent.createdBy;
-
-  // 从全局 Map 删除
-  agentsMap.delete(agentId);
-
-  // 从用户关系索引删除
-  if (agentsByUser[userId]) {
-    const index = agentsByUser[userId].indexOf(agentId);
-    if (index > -1) {
-      agentsByUser[userId].splice(index, 1);
-    }
-  }
-
-  // 从用户名称索引删除（⚠️ 当前阶段不使用，但保留代码以便未来启用）
-  if (userNameIndex[userId]) {
-    const nameKey = agent.name.toLowerCase();
-    delete userNameIndex[userId][nameKey];
-  }
-
-  return true;
+  return results.affectedRows > 0;
 }
 
 /**
  * 清空所有数据（用于测试或重置）
  *
  * 【功能说明】
- * 清空所有存储的数据和索引
+ * 清空所有 Agent 数据
  *
  * 【注意】
- * 开发阶段每次重启会自动清空，此函数主要用于测试
+ * 主要用于测试，生产环境慎用
  */
-function clearAll() {
-  agentsMap.clear();
-  Object.keys(agentsByUser).forEach((key) => delete agentsByUser[key]);
-  Object.keys(userNameIndex).forEach((key) => delete userNameIndex[key]);
+async function clearAll() {
+  await query("DELETE FROM agents");
 }
 
 module.exports = {

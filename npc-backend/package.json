@@ -10,7 +10,10 @@
     "test:BE-008": "node test-BE-008.js",
     "test:BE-010": "node test-BE-010.js",
     "test:BE-011": "node test-BE-011.js",
-    "test:BE-013": "node test-BE-013.js"
+    "test:BE-013": "node test-BE-013.js",
+    "db:init": "node scripts/init-database.js",
+    "test:api": "node scripts/test-api-simple.js",
+    "test:repos": "node scripts/test-repositories.js"
   },
   "keywords": [
     "npc",
@@ -24,7 +27,13 @@
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "js-yaml": "^4.1.1",
+    "mysql2": "^3.15.3",
+    "react-markdown": "^10.1.0",
+    "react-syntax-highlighter": "^16.1.0",
+    "rehype-raw": "^7.0.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"

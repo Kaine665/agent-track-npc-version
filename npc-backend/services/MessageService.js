@@ -128,7 +128,7 @@ async function sendMessage(options) {
   // ==================== 步骤 2：获取或创建 Session ====================
   // 单会话模式：同一参与者组合（用户 + Agent）只有一个 Session
   // 用户 A 再次和 Agent B 对话，会复用同一个 Session
-  const session = sessionService.getOrCreateSession([
+  const session = await sessionService.getOrCreateSession([
     { type: "user", id: userId.trim() },
     { type: "agent", id: agentId.trim() },
   ]);
@@ -136,7 +136,7 @@ async function sendMessage(options) {
   // ==================== 步骤 3：同步创建用户消息 Event ====================
   // 先同步创建用户消息 Event，保证历史事件完整
   // 这样在获取历史事件时，新消息已经包含在上下文中
-  const userEvent = eventService.createEvent({
+  const userEvent = await eventService.createEvent({
     sessionId: session.sessionId,
     userId: userId.trim(),
     agentId: agentId.trim(),
@@ -148,7 +148,7 @@ async function sendMessage(options) {
   });
 
   // ==================== 步骤 4：获取 Agent 配置 ====================
-  const agent = agentService.getAgentById(agentId.trim());
+  const agent = await agentService.getAgentById(agentId.trim());
   if (!agent) {
     throw {
       code: "AGENT_NOT_FOUND",
@@ -158,55 +158,96 @@ async function sendMessage(options) {
 
   // ==================== 步骤 5：获取最近 N 条历史事件 ====================
   // 获取历史事件（包含新消息），用于构建 LLM 上下文
-  const historyEvents = eventService.getRecentEvents(
+  const historyEvents = await eventService.getRecentEvents(
     session.sessionId,
     contextLimit
   );
 
-  // ==================== 步骤 6：异步调用 LLM API ====================
-  // LLM 调用本身是异步的，在等待期间可以做其他事情
-  // 注意：虽然使用 await，但 LLM 调用是异步的，不会阻塞其他操作
-  let reply;
-  try {
-    reply = await llmService.generateReply({
-      model: agent.model,
-      provider: agent.provider, // 如果 Agent 有 provider，使用 Agent 的 provider
-      systemPrompt: agent.systemPrompt,
-      messages: historyEvents, // 历史事件会自动转换为消息格式
-      timeout: 30000, // 30 秒超时
-    });
-  } catch (error) {
-    // LLM 调用失败，用户消息 Event 已创建，返回错误但不回滚
-    // 这样用户可以看到自己发送的消息，即使 AI 回复失败
-    throw {
-      code: error.code || "LLM_API_ERROR",
-      message: error.message || "AI 回复生成失败，请稍后重试",
-      originalError: error,
-    };
-  }
-
-  // ==================== 步骤 7：同步创建 Agent 回复 Event ====================
-  // LLM 返回后，同步创建 Agent 回复 Event，保证回复事件及时保存
-  const agentEvent = eventService.createEvent({
+  // ==================== 步骤 6：异步调用 LLM API（后台处理）====================
+  // 不等待 LLM 回复，立即返回用户消息 Event ID
+  // LLM 调用在后台异步处理，前端通过轮询获取回复
+  
+  // 后台异步处理 LLM 调用（不阻塞主流程）
+  processLLMReplyAsync({
     sessionId: session.sessionId,
     userId: userId.trim(),
     agentId: agentId.trim(),
-    fromType: "agent",
-    fromId: agentId.trim(),
-    toType: "user",
-    toId: userId.trim(),
-    content: reply,
+    agent: agent,
+    historyEvents: historyEvents,
+  }).catch((error) => {
+    // 后台处理失败，记录错误日志（不影响用户消息的创建）
+    console.error("[MessageService] Background LLM processing failed:", error);
   });
 
-  // ==================== 步骤 8：返回 Agent 回复内容 ====================
+  // ==================== 步骤 7：立即返回用户消息 Event ====================
+  // 不等待 LLM 回复，立即返回用户消息 Event ID
+  // 前端通过轮询检查新消息来获取 Agent 回复
   return {
-    eventId: agentEvent.id,
-    content: agentEvent.content,
-    timestamp: agentEvent.timestamp,
+    userEventId: userEvent.id,
+    sessionId: session.sessionId,
+    timestamp: userEvent.timestamp,
+    status: "pending", // 表示 Agent 回复正在处理中
   };
+}
+
+/**
+ * 后台异步处理 LLM 回复
+ *
+ * 【功能说明】
+ * 在后台异步调用 LLM API 并创建 Agent 回复 Event
+ * 不阻塞主流程，允许前端立即收到响应
+ *
+ * 【工作流程】
+ * 1. 调用 LLM API 生成回复
+ * 2. 创建 Agent 回复 Event
+ * 3. 更新 Session 活动时间
+ *
+ * 【错误处理】
+ * - LLM 调用失败：记录错误日志，但不影响用户消息的创建
+ * - Event 创建失败：记录错误日志
+ *
+ * @param {Object} options - LLM 处理选项
+ * @param {string} options.sessionId - 会话 ID
+ * @param {string} options.userId - 用户 ID
+ * @param {string} options.agentId - Agent ID
+ * @param {Object} options.agent - Agent 配置对象
+ * @param {Array<Object>} options.historyEvents - 历史事件列表
+ */
+async function processLLMReplyAsync(options) {
+  const { sessionId, userId, agentId, agent, historyEvents } = options;
+
+  try {
+    // 调用 LLM API 生成回复
+    const reply = await llmService.generateReply({
+      model: agent.model,
+      provider: agent.provider,
+      systemPrompt: agent.systemPrompt,
+      messages: historyEvents,
+      timeout: 30000, // 30 秒超时
+    });
+
+    // 创建 Agent 回复 Event
+    await eventService.createEvent({
+      sessionId: sessionId,
+      userId: userId,
+      agentId: agentId,
+      fromType: "agent",
+      fromId: agentId,
+      toType: "user",
+      toId: userId,
+      content: reply,
+    });
+
+    console.log(`[MessageService] Agent reply created for session: ${sessionId}`);
+  } catch (error) {
+    // LLM 调用失败，记录错误但不抛出（不影响用户消息）
+    console.error(`[MessageService] Failed to process LLM reply for session ${sessionId}:`, error);
+    // 可以选择创建一个错误 Event，或者只记录日志
+  }
 }
 
 module.exports = {
   sendMessage,
+  processLLMReplyAsync, // 导出供测试使用
 };
 

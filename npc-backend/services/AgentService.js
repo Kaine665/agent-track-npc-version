@@ -51,7 +51,7 @@ const {
  * 1. userId: 必填，字符串
  * 2. name: 必填，1-50 字符
  * 3. type: 必填，必须是 'general' 或 'special'
- * 4. systemPrompt: 必填，10-5000 字符
+ * 4. systemPrompt: 可选，0-5000 字符（不填也可以）
  * 5. model: 必填，必须在支持的模型列表中
  * 6. avatarUrl: 可选，如果提供必须是有效的 URL 格式
  *
@@ -100,25 +100,21 @@ function validateAgentData(agentData) {
     };
   }
 
-  // 验证 systemPrompt
-  if (!agentData.systemPrompt || typeof agentData.systemPrompt !== "string") {
-    return {
-      code: "VALIDATION_ERROR",
-      message: "人设描述不能为空",
-    };
-  }
-  const promptLength = agentData.systemPrompt.trim().length;
-  if (promptLength < 10) {
-    return {
-      code: "VALIDATION_ERROR",
-      message: "人设描述至少需要 10 字符",
-    };
-  }
-  if (promptLength > 5000) {
-    return {
-      code: "VALIDATION_ERROR",
-      message: "人设描述不能超过 5000 字符",
-    };
+  // 验证 systemPrompt（可选，允许为空）
+  if (agentData.systemPrompt !== undefined && agentData.systemPrompt !== null) {
+    if (typeof agentData.systemPrompt !== "string") {
+      return {
+        code: "VALIDATION_ERROR",
+        message: "人设描述格式不正确",
+      };
+    }
+    const promptLength = agentData.systemPrompt.trim().length;
+    if (promptLength > 5000) {
+      return {
+        code: "VALIDATION_ERROR",
+        message: "人设描述不能超过 5000 字符",
+      };
+    }
   }
 
   // 验证 model
@@ -186,17 +182,29 @@ function validateAgentData(agentData) {
  * - 系统错误 → 抛出 { code: 'SYSTEM_ERROR', message: '...' }
  *
  * @param {Object} agentData - Agent 数据
- * @param {string} agentData.userId - 用户 ID
+ * @param {string} agentData.userId - 用户 ID（或 createdBy）
  * @param {string} agentData.name - Agent 名称
  * @param {string} agentData.type - Agent 类型
  * @param {string} agentData.model - LLM 模型名称
  * @param {string} [agentData.provider] - LLM 提供商（可选，预设模型会自动推断）
  * @param {string} agentData.systemPrompt - 人设描述
  * @param {string} [agentData.avatarUrl] - 头像 URL（可选）
- * @returns {Object} 创建的 Agent 对象
+ * @returns {Promise<Object>} 创建的 Agent 对象
  * @throws {Object} 错误对象 { code, message }
  */
-function createAgent(agentData) {
+async function createAgent(agentData) {
+  // 支持 createdBy 和 userId 两种字段名
+  const userId = (agentData.userId || agentData.createdBy || "").trim();
+  if (!userId) {
+    throw {
+      code: "VALIDATION_ERROR",
+      message: "用户 ID 不能为空",
+    };
+  }
+  
+  // 统一使用 userId
+  agentData.userId = userId;
+  
   // 字段验证
   const validationError = validateAgentData(agentData);
   if (validationError) {
@@ -204,10 +212,10 @@ function createAgent(agentData) {
   }
 
   // 检查名称唯一性
-  const userId = agentData.userId.trim();
   const name = agentData.name.trim();
 
-  if (agentRepository.checkNameExists(userId, name)) {
+  const nameExists = await agentRepository.checkNameExists(userId, name);
+  if (nameExists) {
     throw {
       code: "DUPLICATE_NAME",
       message: "该名称已存在，请使用其他名称",
@@ -220,13 +228,13 @@ function createAgent(agentData) {
 
   // 创建 Agent
   try {
-    const agent = agentRepository.create({
+    const agent = await agentRepository.create({
       createdBy: userId,
       name: name,
       type: agentData.type,
       model: model,
       provider: provider, // 存储 provider（预设模型自动推断，自定义模型必填）
-      systemPrompt: agentData.systemPrompt.trim(),
+      systemPrompt: agentData.systemPrompt ? agentData.systemPrompt.trim() : "", // 允许为空字符串
       avatarUrl: agentData.avatarUrl ? agentData.avatarUrl.trim() : null,
     });
 
@@ -260,9 +268,9 @@ function createAgent(agentData) {
  * - 如果 lastMessageAt 为 null，按 createdAt 倒序排列
  *
  * @param {string} userId - 用户 ID
- * @returns {Array<Object>} Agent 对象数组，包含 lastMessageAt 字段，按排序规则排序
+ * @returns {Promise<Array<Object>>} Agent 对象数组，包含 lastMessageAt 字段，按排序规则排序
  */
-function getAgentList(userId) {
+async function getAgentList(userId) {
   if (!userId || typeof userId !== "string" || !userId.trim()) {
     return [];
   }
@@ -270,37 +278,70 @@ function getAgentList(userId) {
   const trimmedUserId = userId.trim();
 
   // 获取用户的所有 Agent
-  const agents = agentRepository.findByUserId(trimmedUserId);
+  const agents = await agentRepository.findByUserId(trimmedUserId);
 
-  // 获取用户的所有 Session，构建 agentId -> lastActiveAt 映射
-  const sessions = sessionService.getSessionsByUser(trimmedUserId);
-  const agentLastMessageMap = new Map();
+  // 获取用户的所有 Session，构建 agentId -> { lastActiveAt, lastMessageContent } 映射
+  const sessions = await sessionService.getSessionsByUser(trimmedUserId);
+  const eventService = require("./EventService");
+  const agentLastMessageMap = new Map(); // agentId -> { lastActiveAt, lastMessageContent }
 
-  // 遍历 Session，找到每个 Agent 对应的最后活动时间
-  for (const session of sessions) {
+  // 遍历 Session，找到每个 Agent 对应的最后活动时间和最后一条消息
+  // 使用 Promise.all 并行查询所有 Session 的最后一条消息（提高性能）
+  const sessionQueries = sessions.map(async (session) => {
     // 从 participants 中找到 agent 类型的参与者
     const agentParticipant = session.participants.find(
       (p) => p.type === "agent"
     );
-    if (agentParticipant) {
-      const agentId = agentParticipant.id;
-      const lastActiveAt = session.lastActiveAt;
+    if (!agentParticipant) {
+      return null;
+    }
 
-      // 如果该 Agent 还没有记录，或者当前 Session 的活动时间更晚，则更新
-      if (
-        !agentLastMessageMap.has(agentId) ||
-        lastActiveAt > agentLastMessageMap.get(agentId)
-      ) {
-        agentLastMessageMap.set(agentId, lastActiveAt);
-      }
+    const agentId = agentParticipant.id;
+    const lastActiveAt = session.lastActiveAt;
+
+    // 获取该 Session 的最后一条消息（用于预览）
+    const recentEvents = await eventService.getRecentEvents(session.sessionId, 1);
+    const lastEvent = recentEvents.length > 0 ? recentEvents[recentEvents.length - 1] : null;
+    const lastMessageContent = lastEvent ? lastEvent.content : null;
+
+    return {
+      agentId,
+      lastActiveAt,
+      lastMessageContent,
+    };
+  });
+
+  // 等待所有查询完成
+  const sessionResults = await Promise.all(sessionQueries);
+
+  // 构建 agentId -> { lastActiveAt, lastMessageContent } 映射
+  for (const result of sessionResults) {
+    if (!result) continue;
+
+    const { agentId, lastActiveAt, lastMessageContent } = result;
+    const existing = agentLastMessageMap.get(agentId);
+
+    // 如果该 Agent 还没有记录，或者当前 Session 的活动时间更晚，则更新
+    if (
+      !existing ||
+      lastActiveAt > existing.lastActiveAt
+    ) {
+      agentLastMessageMap.set(agentId, {
+        lastActiveAt,
+        lastMessageContent,
+      });
     }
   }
 
-  // 为每个 Agent 添加 lastMessageAt 字段
-  const agentsWithLastMessage = agents.map((agent) => ({
-    ...agent,
-    lastMessageAt: agentLastMessageMap.get(agent.id) || null,
-  }));
+  // 为每个 Agent 添加 lastMessageAt 和 lastMessagePreview 字段
+  const agentsWithLastMessage = agents.map((agent) => {
+    const lastMessageInfo = agentLastMessageMap.get(agent.id);
+    return {
+      ...agent,
+      lastMessageAt: lastMessageInfo?.lastActiveAt || null,
+      lastMessagePreview: lastMessageInfo?.lastMessageContent || null,
+    };
+  });
 
   // 排序：按 lastMessageAt 倒序，如果为 null 则按 createdAt 倒序
   agentsWithLastMessage.sort((a, b) => {

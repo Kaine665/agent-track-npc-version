@@ -5,6 +5,8 @@
  *
  * 【功能说明】
  * 展示单条聊天消息，支持用户和 AI 两种样式
+ * - 用户消息：纯文本显示
+ * - AI 消息：Markdown 渲染（支持代码高亮、列表、链接、表格等）
  *
  * 【Props】
  * - message: object (消息对象)
@@ -15,14 +17,96 @@
  *
  * @author AI Assistant
  * @created 2025-11-21
+ * @lastModified 2025-01-22
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
-import { Avatar, Typography } from 'antd';
-import { UserOutlined, RobotOutlined } from '@ant-design/icons';
+import { Avatar, Typography, Button, message } from 'antd';
+import { UserOutlined, RobotOutlined, CopyOutlined, CheckOutlined } from '@ant-design/icons';
+import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import styles from './MessageBubble.module.css';
 
 const { Text } = Typography;
+
+/**
+ * 代码块组件（带复制功能）
+ */
+const CodeBlock = ({ node, inline, className, children, ...props }) => {
+  const [copied, setCopied] = useState(false);
+  const match = /language-(\w+)/.exec(className || '');
+  const language = match ? match[1] : '';
+  const codeString = String(children).replace(/\n$/, '');
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(codeString);
+      setCopied(true);
+      message.success('代码已复制');
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      message.error('复制失败');
+    }
+  };
+
+  if (inline) {
+    return (
+      <code className={className} {...props} style={{ 
+        backgroundColor: '#f5f5f5', 
+        padding: '2px 6px', 
+        borderRadius: 4,
+        fontSize: '0.9em',
+        fontFamily: 'Monaco, Consolas, "Courier New", monospace'
+      }}>
+        {children}
+      </code>
+    );
+  }
+
+  return (
+    <div style={{ position: 'relative', margin: '12px 0' }}>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        padding: '8px 12px',
+        backgroundColor: '#1e1e1e',
+        borderTopLeftRadius: 6,
+        borderTopRightRadius: 6,
+        borderBottom: '1px solid #333'
+      }}>
+        <span style={{ color: '#888', fontSize: 12 }}>{language || 'code'}</span>
+        <Button
+          type="text"
+          size="small"
+          icon={copied ? <CheckOutlined /> : <CopyOutlined />}
+          onClick={handleCopy}
+          style={{ color: '#888', fontSize: 12 }}
+        >
+          {copied ? '已复制' : '复制'}
+        </Button>
+      </div>
+      <SyntaxHighlighter
+        style={vscDarkPlus}
+        language={language}
+        PreTag="div"
+        customStyle={{
+          margin: 0,
+          borderRadius: '0 0 6px 6px',
+          fontSize: '0.9em',
+          lineHeight: 1.5,
+        }}
+        {...props}
+      >
+        {codeString}
+      </SyntaxHighlighter>
+    </div>
+  );
+};
 
 const MessageBubble = ({ message, avatarUrl }) => {
   const isUser = message.role === 'user';
@@ -45,12 +129,16 @@ const MessageBubble = ({ message, avatarUrl }) => {
     borderTopRightRadius: isUser ? 2 : 12,
     borderTopLeftRadius: isUser ? 12 : 2,
     position: 'relative',
-    wordBreak: 'break-word', // 允许在单词内换行（处理长单词）
-    wordWrap: 'break-word', // 兼容性写法
-    overflowWrap: 'break-word', // 现代标准写法
-    whiteSpace: 'pre-wrap', // 保留换行符，但允许自动换行
+    wordBreak: 'break-word',
+    wordWrap: 'break-word',
+    overflowWrap: 'break-word',
     fontSize: 15,
     lineHeight: 1.6,
+  };
+
+  // Markdown 内容容器样式（仅用于 AI 消息）
+  const markdownContainerStyle = {
+    // 使用 CSS 类名而不是内联样式对象，因为 ReactMarkdown 会生成 DOM 元素
   };
 
   // 头像样式
@@ -68,28 +156,98 @@ const MessageBubble = ({ message, avatarUrl }) => {
         <Avatar 
           src={avatarUrl} 
           icon={<RobotOutlined />} 
-          style={avatarStyle} 
+          style={avatarStyle}
+          className={styles.avatar}
         />
       )}
 
       {/* 消息内容 */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: isUser ? 'flex-end' : 'flex-start' }}>
-        <div style={bubbleStyle}>
-          {/* 直接渲染内容，使用 whiteSpace: 'pre-wrap' 处理换行 */}
-          {message.content}
+        <div style={bubbleStyle} className={styles.bubble}>
+          {isUser ? (
+            // 用户消息：纯文本显示
+            <div style={{ whiteSpace: 'pre-wrap' }}>
+              {message.content}
+            </div>
+          ) : (
+            // AI 消息：Markdown 渲染
+            <div style={markdownContainerStyle} className={`markdown-content ${styles.markdownContent}`}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw]}
+                components={{
+                  code: CodeBlock,
+                  // 自定义链接样式
+                  a: ({ node, ...props }) => (
+                    <a {...props} target="_blank" rel="noopener noreferrer" style={{ color: '#1890ff', textDecoration: 'underline' }} />
+                  ),
+                  // 自定义段落样式
+                  p: ({ node, ...props }) => <p {...props} style={{ margin: '0.5em 0' }} />,
+                  // 自定义列表样式
+                  ul: ({ node, ...props }) => <ul {...props} style={{ margin: '0.5em 0', paddingLeft: '1.5em' }} />,
+                  ol: ({ node, ...props }) => <ol {...props} style={{ margin: '0.5em 0', paddingLeft: '1.5em' }} />,
+                  li: ({ node, ...props }) => <li {...props} style={{ margin: '0.25em 0' }} />,
+                  // 自定义标题样式
+                  h1: ({ node, ...props }) => <h1 {...props} style={{ margin: '0.8em 0 0.4em 0', fontWeight: 600, fontSize: '1.5em' }} />,
+                  h2: ({ node, ...props }) => <h2 {...props} style={{ margin: '0.8em 0 0.4em 0', fontWeight: 600, fontSize: '1.3em' }} />,
+                  h3: ({ node, ...props }) => <h3 {...props} style={{ margin: '0.8em 0 0.4em 0', fontWeight: 600, fontSize: '1.1em' }} />,
+                  // 自定义引用样式
+                  blockquote: ({ node, ...props }) => (
+                    <blockquote {...props} style={{ 
+                      borderLeft: '3px solid #ddd', 
+                      paddingLeft: '1em', 
+                      margin: '0.5em 0', 
+                      color: '#666', 
+                      fontStyle: 'italic' 
+                    }} />
+                  ),
+                  // 自定义表格样式
+                  table: ({ node, ...props }) => (
+                    <table {...props} style={{ 
+                      borderCollapse: 'collapse', 
+                      width: '100%', 
+                      margin: '0.5em 0' 
+                    }} />
+                  ),
+                  th: ({ node, ...props }) => (
+                    <th {...props} style={{ 
+                      border: '1px solid #ddd', 
+                      padding: '6px 12px', 
+                      textAlign: 'left',
+                      backgroundColor: '#f5f5f5',
+                      fontWeight: 600
+                    }} />
+                  ),
+                  td: ({ node, ...props }) => (
+                    <td {...props} style={{ 
+                      border: '1px solid #ddd', 
+                      padding: '6px 12px', 
+                      textAlign: 'left' 
+                    }} />
+                  ),
+                  // 自定义分隔线
+                  hr: ({ node, ...props }) => (
+                    <hr {...props} style={{ 
+                      border: 'none', 
+                      borderTop: '1px solid #ddd', 
+                      margin: '1em 0' 
+                    }} />
+                  ),
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
+            </div>
+          )}
         </div>
-        
-        {/* 时间戳 (可选，这里暂不显示具体时间，保持界面简洁) */}
-        {/* <Text type="secondary" style={{ fontSize: 12, marginTop: 4 }}>
-          {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </Text> */}
       </div>
 
       {/* 用户头像 (右侧) */}
       {isUser && (
         <Avatar 
           icon={<UserOutlined />} 
-          style={avatarStyle} 
+          style={avatarStyle}
+          className={styles.avatar}
         />
       )}
     </div>

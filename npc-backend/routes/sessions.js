@@ -130,7 +130,7 @@ function sendErrorResponse(res, statusCode, code, message) {
  * - VALIDATION_ERROR → 400（参数验证失败）
  * - SYSTEM_ERROR → 500（系统错误）
  */
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const userId = req.query.userId;
 
@@ -148,39 +148,41 @@ router.get("/", (req, res) => {
     // SessionService.getSessionsByUser 会：
     // 1. 查询用户参与的所有 Session
     // 2. 按最后活动时间倒序排列
-    const sessions = sessionService.getSessionsByUser(userId.trim());
+    const sessions = await sessionService.getSessionsByUser(userId.trim());
 
     // 为每个会话补充 Agent 信息
     // 从 Session 的 participants 中找到 agent 类型的参与者
-    const sessionsWithAgentInfo = sessions.map((session) => {
-      // 找到 Agent 参与者
-      const agentParticipant = session.participants.find(
-        (p) => p.type === "agent"
-      );
+    const sessionsWithAgentInfo = await Promise.all(
+      sessions.map(async (session) => {
+        // 找到 Agent 参与者
+        const agentParticipant = session.participants.find(
+          (p) => p.type === "agent"
+        );
 
-      let agent = null;
-      if (agentParticipant) {
-        // 获取 Agent 信息
-        agent = agentService.getAgentById(agentParticipant.id);
-        // 如果 Agent 不存在，agent 为 null（不抛出错误，因为 Agent 可能被删除）
-      }
+        let agent = null;
+        if (agentParticipant) {
+          // 获取 Agent 信息
+          agent = await agentService.getAgentById(agentParticipant.id);
+          // 如果 Agent 不存在，agent 为 null（不抛出错误，因为 Agent 可能被删除）
+        }
 
-      return {
-        sessionId: session.sessionId,
-        agentId: agentParticipant ? agentParticipant.id : null,
-        agent: agent
-          ? {
-              id: agent.id,
-              name: agent.name,
-              type: agent.type,
-              model: agent.model,
-              avatarUrl: agent.avatarUrl,
-            }
-          : null,
-        createdAt: session.createdAt,
-        lastActiveAt: session.lastActiveAt,
-      };
-    });
+        return {
+          sessionId: session.sessionId,
+          agentId: agentParticipant ? agentParticipant.id : null,
+          agent: agent
+            ? {
+                id: agent.id,
+                name: agent.name,
+                type: agent.type,
+                model: agent.model,
+                avatarUrl: agent.avatarUrl,
+              }
+            : null,
+          createdAt: session.createdAt,
+          lastActiveAt: session.lastActiveAt,
+        };
+      })
+    );
 
     // 返回成功响应
     sendSuccessResponse(res, 200, {

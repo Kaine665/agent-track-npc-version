@@ -146,7 +146,7 @@ function sendErrorResponse(res, statusCode, code, message) {
  * - VALIDATION_ERROR → 400（参数验证失败）
  * - SYSTEM_ERROR → 500（系统错误）
  */
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const userId = req.query.userId;
     const agentId = req.query.agentId;
@@ -177,13 +177,20 @@ router.get("/", (req, res) => {
     // 2. 如果 Session 不存在，返回 null
     // 3. 如果 Session 存在，获取该 Session 的所有事件
     // 4. 返回 Session 信息和事件列表
-    const history = eventService.getHistoryByUserAndAgent(
+    const history = await eventService.getHistoryByUserAndAgent(
       userId.trim(),
       agentId.trim()
     );
 
+    // 调试日志
+    console.log(`[DEBUG] Backend: getHistoryByUserAndAgent result:`, history ? {
+      sessionId: history.session?.sessionId,
+      eventsCount: history.events?.length || 0
+    } : null);
+
     // 如果 Session 不存在，返回空数据
     if (!history) {
+      console.log(`[DEBUG] Backend: No history found for userId=${userId}, agentId=${agentId}`);
       return sendSuccessResponse(res, 200, {
         session: null,
         events: [],
@@ -191,9 +198,10 @@ router.get("/", (req, res) => {
     }
 
     // 返回成功响应（包含 Session 信息和事件列表）
+    console.log(`[DEBUG] Backend: Returning history with ${history.events?.length || 0} events`);
     sendSuccessResponse(res, 200, {
       session: history.session,
-      events: history.events,
+      events: history.events || [],
     });
   } catch (error) {
     // 错误处理

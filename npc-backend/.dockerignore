@@ -1,0 +1,45 @@
+# ============================================
+# Docker 忽略文件 (.dockerignore)
+# ============================================
+# 说明：指定构建 Docker 镜像时忽略的文件和目录
+
+# 依赖目录
+node_modules
+npm-debug.log
+
+# 测试文件
+test-*.js
+*.test.js
+
+# 开发工具
+.vscode
+.idea
+
+# Git
+.git
+.gitignore
+
+# 文档
+docs
+*.md
+README.md
+
+# 环境变量文件（使用环境变量或 secrets）
+.env
+.env.local
+.env.*.local
+
+# 日志文件
+*.log
+logs
+
+# 临时文件
+*.tmp
+*.temp
+.DS_Store
+
+# 数据库脚本（在容器中不需要）
+scripts/init-database.js
+scripts/add-provider-column.js
+migrations
+

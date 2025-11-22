@@ -23,6 +23,7 @@ import { ArrowLeftOutlined, SendOutlined, UserOutlined, RobotOutlined, LoadingOu
 import api from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import MessageBubble from '../../components/MessageBubble/MessageBubble';
+import styles from './Chat.module.css';
 
 const { Header, Content, Footer } = Layout;
 const { Title, Text } = Typography;
@@ -97,10 +98,14 @@ const Chat = () => {
         }
 
         if (historyRes.success) {
-          setMessages(historyRes.data.messages);
+          // 调试日志：记录历史数据
+          console.log(`[DEBUG] Chat page: historyRes.data:`, historyRes.data);
+          console.log(`[DEBUG] Chat page: messages count:`, historyRes.data?.messages?.length || 0);
+          setMessages(historyRes.data.messages || []);
         } else {
           // 历史获取失败不阻止页面显示，只是没有历史记录
           console.warn('获取对话历史失败:', historyRes.error);
+          setMessages([]); // 确保设置为空数组
         }
 
       } catch (err) {
@@ -137,6 +142,67 @@ const Chat = () => {
     scrollToBottom();
   }, [messages, loading]);
 
+  // 轮询检查新消息的引用（用于清理）
+  const pollingRef = useRef(null);
+
+  // 清理轮询（组件卸载或发送新消息时）
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, []);
+
+  // 轮询检查新消息
+  const startPolling = (sessionId, lastEventId) => {
+    // 如果已有轮询，先清除
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+    }
+
+    let pollCount = 0;
+    const maxPolls = 60; // 最多轮询 60 次（5秒 × 60 = 5分钟）
+    const pollInterval = 5000; // 每 5 秒轮询一次
+
+    pollingRef.current = setInterval(async () => {
+      pollCount++;
+
+      try {
+        const response = await api.messages.checkNew(sessionId, lastEventId);
+
+        if (response.success && response.data.hasNew) {
+          // 收到新消息，停止轮询
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+
+          // 添加新消息到列表
+          setMessages(prev => {
+            // 过滤掉临时消息，添加新消息
+            const filtered = prev.filter(m => !m.isTemp);
+            return [...filtered, ...response.data.messages];
+          });
+
+          setSending(false);
+        } else if (pollCount >= maxPolls) {
+          // 达到最大轮询次数，停止轮询
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+          setSending(false);
+          message.warning('等待 AI 回复超时，请稍后刷新页面查看');
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+        // 轮询错误不中断流程，继续轮询
+      }
+    }, pollInterval);
+  };
+
   // 发送消息
   const handleSend = async () => {
     if (!inputValue.trim() || sending) return;
@@ -170,21 +236,28 @@ const Chat = () => {
 
       if (response.success) {
         // 发送成功后，更新消息列表
-        // 后端已经保存了用户消息和 AI 回复，我们只需要：
         // 1. 移除临时用户消息
-        // 2. 添加真实的用户消息（去掉临时标记）
-        // 3. 添加 AI 回复消息
+        // 2. 添加真实的用户消息
+        const userMsg = {
+          ...tempUserMsg,
+          isTemp: false,
+          id: response.data.id,
+          sessionId: response.data.sessionId,
+        };
+
         setMessages(prev => {
-          // 移除所有临时消息
           const filtered = prev.filter(m => !m.isTemp);
-          // 添加真实的用户消息和 AI 回复
-          const userMsg = { 
-            ...tempUserMsg, 
-            isTemp: false,
-            id: `msg_user_${Date.now()}` // 使用时间戳生成 ID，避免与历史消息冲突
-          };
-          return [...filtered, userMsg, response.data];
+          return [...filtered, userMsg];
         });
+
+        // 开始轮询检查 Agent 回复
+        if (response.data.sessionId) {
+          startPolling(response.data.sessionId, response.data.id);
+        } else {
+          // 如果没有 sessionId，回退到同步模式（兼容旧版本）
+          setSending(false);
+          message.warning('无法开始轮询，请刷新页面查看回复');
+        }
       } else {
         // 根据错误码提供更友好的错误提示
         let errorMessage = response.error?.message || '发送失败';
@@ -201,7 +274,6 @@ const Chat = () => {
       // 发送失败，移除临时消息并恢复输入
       setMessages(prev => prev.filter(m => m.id !== tempUserMsg.id));
       setInputValue(content);
-    } finally {
       setSending(false);
     }
   };
@@ -216,7 +288,7 @@ const Chat = () => {
 
   // 返回列表页
   const handleBack = () => {
-    navigate('/agents');
+    navigate('/agents', { state: { fromChat: true } });
   };
 
   // 渲染内容
@@ -255,37 +327,43 @@ const Chat = () => {
   return (
     <Layout style={{ height: '100vh', background: '#f5f5f5' }}>
       {/* 顶部导航 */}
-      <Header style={{ 
+      <Header className={styles.header} style={{ 
         background: '#fff', 
         padding: '0 16px', 
         display: 'flex', 
         alignItems: 'center', 
         borderBottom: '1px solid #f0f0f0',
-        zIndex: 10
+        zIndex: 10,
+        height: 'auto',
+        minHeight: 64
       }}>
         <Button 
           type="text" 
           icon={<ArrowLeftOutlined />} 
           onClick={handleBack}
-          style={{ marginRight: 8 }}
+          style={{ marginRight: 8, flexShrink: 0 }}
         />
         
         <Avatar 
           src={agent?.avatarUrl} 
           icon={<RobotOutlined />} 
-          style={{ backgroundColor: '#fde3cf', marginRight: 12 }}
+          style={{ backgroundColor: '#fde3cf', marginRight: 12, flexShrink: 0 }}
+          size="large"
+          className={styles.avatar}
         />
         
-        <div style={{ lineHeight: 1.5 }}>
-          <div style={{ fontWeight: 'bold', fontSize: 16 }}>{agent?.name || '加载中...'}</div>
-          <div style={{ fontSize: 12, color: '#999' }}>
+        <div style={{ lineHeight: 1.5, flex: 1, minWidth: 0, overflow: 'hidden' }}>
+          <div className={styles.agentName} style={{ fontWeight: 'bold', fontSize: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {agent?.name || '加载中...'}
+          </div>
+          <div className={styles.agentInfo} style={{ fontSize: 12, color: '#999', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {agent?.model || '未知模型'} • {agent?.type === 'special' ? '特定角色' : '通用助手'}
           </div>
         </div>
       </Header>
 
       {/* 消息列表区域 */}
-      <Content style={{ 
+      <Content className={styles.content} style={{ 
         padding: '20px 16px', 
         overflowY: 'auto', 
         display: 'flex', 
@@ -326,23 +404,24 @@ const Chat = () => {
       </Content>
 
       {/* 底部输入区域 */}
-      <Footer style={{ 
+      <Footer className={styles.footer} style={{ 
         background: '#fff', 
         padding: '12px 16px', 
         borderTop: '1px solid #f0f0f0' 
       }}>
-        <div style={{ maxWidth: 800, margin: '0 auto', display: 'flex', alignItems: 'flex-end' }}>
+        <div style={{ maxWidth: 800, margin: '0 auto', display: 'flex', alignItems: 'flex-end', gap: 12 }}>
           <TextArea
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="输入消息..."
             autoSize={{ minRows: 1, maxRows: 4 }}
+            className={styles.inputArea}
             style={{ 
               borderRadius: 18, 
               resize: 'none', 
               padding: '8px 16px',
-              marginRight: 12
+              fontSize: 15
             }}
             disabled={sending}
           />
@@ -352,7 +431,9 @@ const Chat = () => {
             icon={<SendOutlined />} 
             onClick={handleSend}
             disabled={!inputValue.trim() || sending}
-            style={{ marginBottom: 2 }} // 对齐
+            size="large"
+            className={styles.sendButton}
+            style={{ flexShrink: 0, marginBottom: 2 }} // 对齐
           />
         </div>
       </Footer>

@@ -303,13 +303,13 @@ class HttpAdapter extends ApiAdapter {
    */
   messages = {
     /**
-     * 发送消息（HTTP）
+     * 发送消息（HTTP - 异步模式）
      *
      * @param {object} data - 消息数据
      * @param {string} data.userId - 用户 ID
      * @param {string} data.agentId - NPC ID
      * @param {string} data.message - 消息内容（前端使用 message，后端使用 text）
-     * @returns {Promise<object>} AI 回复数据
+     * @returns {Promise<object>} 用户消息数据（包含 sessionId，用于轮询）
      */
     send: async (data) => {
       // 适配请求格式：前端使用 message，后端使用 text
@@ -330,20 +330,59 @@ class HttpAdapter extends ApiAdapter {
         return response;
       }
 
-      // 适配响应格式：后端返回 event 格式，前端需要 message 格式
-      // 后端实际返回：{ eventId, content, timestamp }
-      // 前端需要：{ id, role, content, createdAt }
-      const message = {
-        id: response.data.eventId || `msg_${Date.now()}`,
-        sessionId: data.sessionId || null, // sessionId 可选，前端可能不需要
-        role: "assistant",
-        content: response.data.content || "",
+      // 后端现在返回：{ userEventId, sessionId, timestamp, status: "pending" }
+      // 前端需要：{ id, sessionId, role: "user", content, createdAt, status }
+      const userMessage = {
+        id: response.data.userEventId || `msg_${Date.now()}`,
+        sessionId: response.data.sessionId || null,
+        role: "user",
+        content: data.message || data.text,
         createdAt: response.data.timestamp || Date.now(),
+        status: response.data.status || "pending", // pending 表示 Agent 回复正在处理
       };
 
       return {
         success: true,
-        data: message,
+        data: userMessage,
+        timestamp: response.timestamp,
+      };
+    },
+
+    /**
+     * 检查新消息（用于轮询）
+     *
+     * @param {string} sessionId - 会话 ID
+     * @param {string} [lastEventId] - 最后已知的事件 ID（可选）
+     * @returns {Promise<object>} 新消息数据 { hasNew: boolean, messages: [] }
+     */
+    checkNew: async (sessionId, lastEventId = null) => {
+      const params = { sessionId };
+      if (lastEventId) {
+        params.lastEventId = lastEventId;
+      }
+
+      const response = await this.request("GET", "/api/v1/messages/check", params);
+
+      if (!response.success) {
+        return response;
+      }
+
+      // 适配数据格式：后端返回 events 数组，前端需要 messages 数组
+      const events = response.data.events || [];
+      const messages = events.map((event) => ({
+        id: event.id || `msg_${event.timestamp}`,
+        sessionId: event.sessionId,
+        role: event.fromType === "user" ? "user" : "assistant",
+        content: event.content || "",
+        createdAt: event.timestamp || Date.now(),
+      }));
+
+      return {
+        success: true,
+        data: {
+          hasNew: response.data.hasNew || messages.length > 0,
+          messages: messages,
+        },
         timestamp: response.timestamp,
       };
     },
@@ -366,6 +405,10 @@ class HttpAdapter extends ApiAdapter {
         agentId,
       });
 
+      // 调试日志
+      console.log(`[DEBUG] Frontend: history.get response:`, response);
+      console.log(`[DEBUG] Frontend: response.data:`, response.data);
+
       if (!response.success) {
         return response;
       }
@@ -374,6 +417,9 @@ class HttpAdapter extends ApiAdapter {
       // 后端格式：{ fromType: 'user'|'agent', content, timestamp, ... }
       // 前端格式：{ role: 'user'|'assistant', content, createdAt, ... }
       const events = response.data.events || [];
+      console.log(`[DEBUG] Frontend: events count:`, events.length);
+      console.log(`[DEBUG] Frontend: events:`, events);
+      
       const messages = events.map((event) => ({
         id: event.id || `msg_${event.timestamp}`,
         sessionId: event.sessionId,
@@ -381,6 +427,9 @@ class HttpAdapter extends ApiAdapter {
         content: event.content || "",
         createdAt: event.timestamp || Date.now(),
       }));
+
+      console.log(`[DEBUG] Frontend: converted messages count:`, messages.length);
+      console.log(`[DEBUG] Frontend: converted messages:`, messages);
 
       return {
         success: true,
