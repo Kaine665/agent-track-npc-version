@@ -10,7 +10,7 @@
 # 3. 查看日志：docker-compose logs -f
 # 4. 停止服务：docker-compose down
 
-version: '3.8'
+# version: '3.8'  # Docker Compose v2 不再需要 version
 
 services:
   # ==================== MySQL 数据库 ====================
@@ -21,8 +21,9 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-your_mysql_password}
       MYSQL_DATABASE: ${DB_NAME:-npc_db}
-      MYSQL_USER: ${DB_USER:-npc_user}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-your_mysql_password}
+      # 注意：不要设置 MYSQL_USER 和 MYSQL_PASSWORD
+      # 如果 DB_USER 是 root，直接使用 root 用户
+      # 如果 DB_USER 不是 root，可以在应用启动后手动创建用户
     volumes:
       # 数据持久化
       - mysql_data:/var/lib/mysql
@@ -79,8 +80,9 @@ services:
       context: ./npc-frontend
       dockerfile: Dockerfile
       args:
-        # 构建时传入 API 地址（用于前端构建）
-        VITE_API_BASE_URL: ${FRONTEND_API_URL:-http://localhost:8000}
+        # 构建时传入 API 地址（使用相对路径，通过 Nginx 代理）
+        # 空字符串表示使用相对路径 /api，Nginx 会自动代理到后端
+        VITE_API_BASE_URL: ""
         VITE_API_MODE: http
     container_name: npc-frontend
     restart: unless-stopped

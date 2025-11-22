@@ -60,7 +60,12 @@ async function checkBackendAvailable(baseURL) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 2000); // 2秒超时
 
-    const response = await fetch(`${baseURL}/api/v1/health`, {
+    // 如果 baseURL 为空字符串，使用相对路径（通过 Nginx 代理）
+    const healthURL = baseURL === "" 
+      ? "/api/v1/health" 
+      : `${baseURL}/api/v1/health`;
+
+    const response = await fetch(healthURL, {
       method: "GET",
       signal: controller.signal,
     });
@@ -102,7 +107,10 @@ async function checkBackendAvailable(baseURL) {
 async function createApi(mode = null) {
   // 确定使用的模式
   const apiMode = mode || import.meta.env.VITE_API_MODE || "auto";
-  const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+  // 如果 VITE_API_BASE_URL 为空字符串，使用相对路径（通过 Nginx 代理）
+  const baseURL = import.meta.env.VITE_API_BASE_URL === "" 
+    ? "" 
+    : (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000");
 
   // 如果明确指定模式，直接使用
   if (apiMode === "mock") {
@@ -159,7 +167,10 @@ function notifyInitializationListeners() {
 
 // 异步初始化适配器（不阻塞应用启动）
 // 策略：先立即检测一次，如果失败则等待 10 秒后再检测
-const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+// 如果 VITE_API_BASE_URL 为空字符串，使用相对路径（通过 Nginx 代理）
+const baseURL = import.meta.env.VITE_API_BASE_URL === "" 
+  ? "" 
+  : (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000");
 
 // 立即检测后端（快速路径）
 checkBackendAvailable(baseURL)
