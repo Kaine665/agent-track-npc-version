@@ -73,61 +73,66 @@ function loadYAMLConfig() {
     const config = yaml.load(fileContents);
 
     // 将配置设置到环境变量中
+    // 环境变量优先级高于 YAML 配置（Docker 部署时环境变量已设置）
     if (config.server) {
-      if (config.server.port) {
+      if (config.server.port && !process.env.PORT) {
         process.env.PORT = String(config.server.port);
       }
     }
 
     if (config.database) {
-      if (config.database.host) {
+      // 环境变量优先级高于 YAML 配置
+      // 只在环境变量未设置时才从 YAML 读取（Docker 部署时环境变量已设置）
+      if (config.database.host && !process.env.DB_HOST) {
         process.env.DB_HOST = config.database.host;
       }
-      if (config.database.port) {
+      if (config.database.port && !process.env.DB_PORT) {
         process.env.DB_PORT = String(config.database.port);
       }
-      if (config.database.user) {
+      if (config.database.user && !process.env.DB_USER) {
         process.env.DB_USER = config.database.user;
       }
       // 处理密码：必须设置，即使是空字符串
       // 注意：如果 password 是 undefined，不设置环境变量（使用默认值）
       // 如果 password 是空字符串 ""，设置为空字符串（表示无密码）
       // 如果 password 有值，设置为该值
-      if (config.database.password !== undefined && config.database.password !== null) {
+      // 环境变量优先级高于 YAML 配置
+      if (config.database.password !== undefined && config.database.password !== null && !process.env.DB_PASSWORD) {
         process.env.DB_PASSWORD = String(config.database.password);
       }
-      if (config.database.name) {
+      if (config.database.name && !process.env.DB_NAME) {
         process.env.DB_NAME = config.database.name;
       }
     }
 
     if (config.llm) {
+      // 环境变量优先级高于 YAML 配置
       // OpenRouter 配置
       if (config.llm.openrouter) {
-        if (config.llm.openrouter.enabled !== undefined) {
+        if (config.llm.openrouter.enabled !== undefined && !process.env.ENABLE_OPENROUTER) {
           process.env.ENABLE_OPENROUTER = String(config.llm.openrouter.enabled);
         }
-        if (config.llm.openrouter.api_key) {
+        if (config.llm.openrouter.api_key && !process.env.OPENROUTER_API_KEY) {
           process.env.OPENROUTER_API_KEY = config.llm.openrouter.api_key;
         }
       }
 
       // OpenAI 配置
       if (config.llm.openai) {
-        if (config.llm.openai.enabled !== undefined) {
+        if (config.llm.openai.enabled !== undefined && !process.env.ENABLE_OPENAI) {
           process.env.ENABLE_OPENAI = String(config.llm.openai.enabled);
         }
-        if (config.llm.openai.api_key) {
+        if (config.llm.openai.api_key && !process.env.OPENAI_API_KEY) {
           process.env.OPENAI_API_KEY = config.llm.openai.api_key;
         }
       }
 
       // DeepSeek 配置
       if (config.llm.deepseek) {
-        if (config.llm.deepseek.enabled !== undefined) {
+        if (config.llm.deepseek.enabled !== undefined && !process.env.ENABLE_DEEPSEEK) {
           process.env.ENABLE_DEEPSEEK = String(config.llm.deepseek.enabled);
         }
-        if (config.llm.deepseek.api_key) {
+        if (config.llm.deepseek.api_key && !process.env.DEEPSEEK_API_KEY) {
           process.env.DEEPSEEK_API_KEY = config.llm.deepseek.api_key;
         }
       }
