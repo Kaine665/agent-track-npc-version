@@ -59,12 +59,14 @@ class HttpAdapter extends ApiAdapter {
    * 从环境变量获取 API 基础路径，默认使用本地开发服务器
    */
   // API 基础路径
-  // 如果 VITE_API_BASE_URL 为空字符串，使用相对路径（通过 Nginx 代理）
+  // 如果 VITE_API_BASE_URL 为空字符串或 /api，使用相对路径（通过 Nginx 代理）
   // 否则使用指定的 URL
-  const envBaseURL = import.meta.env.VITE_API_BASE_URL;
-  baseURL = (envBaseURL === "/api" || envBaseURL === "") 
-    ? "" 
-    : (envBaseURL || "http://localhost:8000");
+  baseURL = (() => {
+    const envBaseURL = import.meta.env.VITE_API_BASE_URL;
+    return (envBaseURL === "/api" || envBaseURL === "") 
+      ? "" 
+      : (envBaseURL || "http://localhost:8000");
+  })();
 
   /**
    * 发送 HTTP 请求
