@@ -29,9 +29,15 @@
  * - 网络错误：自动重试
  *
  * 【环境变量】
- * - OPENAI_API_KEY: OpenAI API Key
- * - DEEPSEEK_API_KEY: DeepSeek API Key
- * - OPENROUTER_API_KEY: OpenRouter API Key
+ * - OPENAI_API_KEY: OpenAI API Key（支持多个，用逗号分隔：key1,key2,key3）
+ * - DEEPSEEK_API_KEY: DeepSeek API Key（支持多个，用逗号分隔：key1,key2,key3）
+ * - OPENROUTER_API_KEY: OpenRouter API Key（支持多个，用逗号分隔：key1,key2,key3）
+ *
+ * 【多 API Key 故障转移】
+ * - 支持在环境变量中配置多个 API Key，用逗号分隔
+ * - 按顺序尝试每个 API Key，如果失败（401/403/429/超时/网络错误）自动切换到下一个
+ * - 如果所有 API Key 都失败，抛出最后一个错误
+ * - 示例：OPENROUTER_API_KEY=key1,key2,key3
  *
  * @author AI Assistant
  * @created 2025-11-20
@@ -157,11 +163,25 @@ async function callLLMAPI(
     };
   }
 
-  // 从环境变量读取 API Key
-  // ⚠️ 未来扩展：如果支持用户自定义 API Key，可以添加参数：
-  // const apiKey = customApiKey || process.env[config.apiKeyEnv];
-  const apiKey = process.env[config.apiKeyEnv];
-  if (!apiKey) {
+  // 从环境变量读取 API Key（支持多个，用逗号分隔）
+  // 格式：OPENROUTER_API_KEY=key1,key2,key3
+  // 如果支持用户自定义 API Key，可以添加参数：
+  // const apiKeys = customApiKeys || process.env[config.apiKeyEnv];
+  const apiKeysStr = process.env[config.apiKeyEnv];
+  if (!apiKeysStr) {
+    throw {
+      code: "API_KEY_MISSING",
+      message: `缺少 ${provider} API Key，请设置环境变量 ${config.apiKeyEnv}`,
+    };
+  }
+
+  // 解析多个 API Key（用逗号分隔，去除空格）
+  const apiKeys = apiKeysStr
+    .split(",")
+    .map((key) => key.trim())
+    .filter((key) => key.length > 0);
+
+  if (apiKeys.length === 0) {
     throw {
       code: "API_KEY_MISSING",
       message: `缺少 ${provider} API Key，请设置环境变量 ${config.apiKeyEnv}`,
@@ -181,94 +201,173 @@ async function callLLMAPI(
     temperature: 0.7,
   };
 
-  // 创建 AbortController 用于超时控制
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  // 按顺序尝试每个 API Key（故障转移机制）
+  let lastError = null;
+  let usedApiKeyIndex = -1;
 
-  try {
-    // ⚠️ 未来扩展：如果需要代理支持，可以添加：
-    // const fetchOptions = {
-    //   method: "POST",
-    //   headers: config.headers(apiKey),
-    //   body: JSON.stringify(requestBody),
-    //   signal: controller.signal,
-    // };
-    // if (process.env.HTTP_PROXY) {
-    //   fetchOptions.agent = new HttpsProxyAgent(process.env.HTTP_PROXY);
-    // }
-    // const response = await fetch(`${config.baseUrl}/chat/completions`, fetchOptions);
+  for (let i = 0; i < apiKeys.length; i++) {
+    const apiKey = apiKeys[i];
+    usedApiKeyIndex = i;
 
-    const response = await fetch(`${config.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: config.headers(apiKey),
-      body: JSON.stringify(requestBody),
-      signal: controller.signal,
-      // 增加连接超时时间（Node.js fetch 默认可能较短）
-      // 注意：fetch 的超时由 AbortController 控制，这里只是注释说明
-    });
+    // 创建 AbortController 用于超时控制
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-    clearTimeout(timeoutId);
+    try {
+      const response = await fetch(`${config.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: config.headers(apiKey),
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorStatus = response.status;
+        const errorMessage =
+          errorData.error?.message ||
+          `LLM API 调用失败：${errorStatus} ${response.statusText}`;
+
+        // 判断是否应该尝试下一个 API Key
+        // 401 (Unauthorized), 403 (Forbidden), 429 (Too Many Requests) 可以尝试下一个
+        // 400 (Bad Request), 500+ (Server Error) 不应该尝试下一个（可能是请求格式问题）
+        const shouldRetryNext =
+          errorStatus === 401 ||
+          errorStatus === 403 ||
+          errorStatus === 429;
+
+        if (shouldRetryNext && i < apiKeys.length - 1) {
+          // 记录错误，但继续尝试下一个 API Key
+          console.warn(
+            `[LLMService] API Key ${i + 1}/${apiKeys.length} failed (${errorStatus}): ${errorMessage}, trying next...`
+          );
+          lastError = {
+            code: "LLM_API_ERROR",
+            message: errorMessage,
+            status: errorStatus,
+            provider,
+            apiKeyIndex: i + 1,
+          };
+          continue; // 尝试下一个 API Key
+        }
+
+        // 不应该重试或已经是最后一个 API Key，抛出错误
+        throw {
+          code: "LLM_API_ERROR",
+          message: errorMessage,
+          status: errorStatus,
+          provider,
+          apiKeyIndex: i + 1,
+        };
+      }
+
+      const data = await response.json();
+
+      // 提取回复内容
+      if (
+        data.choices &&
+        data.choices.length > 0 &&
+        data.choices[0].message &&
+        data.choices[0].message.content
+      ) {
+        // 成功！记录使用的 API Key 索引（用于日志）
+        if (i > 0) {
+          console.log(
+            `[LLMService] Successfully used API Key ${i + 1}/${apiKeys.length} after ${i} failed attempts`
+          );
+        }
+        return data.choices[0].message.content.trim();
+      }
+
       throw {
         code: "LLM_API_ERROR",
-        message:
-          errorData.error?.message ||
-          `LLM API 调用失败：${response.status} ${response.statusText}`,
-        status: response.status,
+        message: "LLM API 返回格式异常",
         provider,
+        apiKeyIndex: i + 1,
       };
-    }
+    } catch (error) {
+      clearTimeout(timeoutId);
 
-    const data = await response.json();
+      // 超时错误：如果是最后一个 API Key，抛出错误；否则尝试下一个
+      if (error.name === "AbortError") {
+        if (i < apiKeys.length - 1) {
+          console.warn(
+            `[LLMService] API Key ${i + 1}/${apiKeys.length} timeout, trying next...`
+          );
+          lastError = {
+            code: "LLM_API_TIMEOUT",
+            message: "LLM API 调用超时",
+            provider,
+            apiKeyIndex: i + 1,
+          };
+          continue;
+        }
+        throw {
+          code: "LLM_API_TIMEOUT",
+          message: "所有 API Key 调用超时，请稍后重试",
+          provider,
+        };
+      }
 
-    // 提取回复内容
-    if (
-      data.choices &&
-      data.choices.length > 0 &&
-      data.choices[0].message &&
-      data.choices[0].message.content
-    ) {
-      return data.choices[0].message.content.trim();
-    }
+      // 如果是我们抛出的错误
+      if (error.code) {
+        // 如果是可重试的错误且还有更多 API Key，继续尝试
+        if (
+          (error.code === "LLM_API_ERROR" &&
+            (error.status === 401 ||
+              error.status === 403 ||
+              error.status === 429)) &&
+          i < apiKeys.length - 1
+        ) {
+          lastError = error;
+          continue;
+        }
+        // 否则抛出错误
+        throw error;
+      }
 
-    throw {
-      code: "LLM_API_ERROR",
-      message: "LLM API 返回格式异常",
-      provider,
-    };
-  } catch (error) {
-    clearTimeout(timeoutId);
+      // 网络错误或其他错误：如果是最后一个 API Key，抛出错误；否则尝试下一个
+      const errorMessage = error.message || String(error);
+      const errorCause = error.cause
+        ? ` (原因: ${error.cause.message || error.cause})`
+        : "";
 
-    // 超时错误
-    if (error.name === "AbortError") {
+      if (i < apiKeys.length - 1) {
+        console.warn(
+          `[LLMService] API Key ${i + 1}/${apiKeys.length} network error: ${errorMessage}${errorCause}, trying next...`
+        );
+        lastError = {
+          code: "LLM_API_ERROR",
+          message: `LLM API 调用失败：${errorMessage}${errorCause}`,
+          provider,
+          originalError: errorMessage,
+          errorType: error.name || error.constructor?.name || "Unknown",
+          apiKeyIndex: i + 1,
+        };
+        continue;
+      }
+
+      // 最后一个 API Key 也失败了，抛出错误
       throw {
-        code: "LLM_API_TIMEOUT",
-        message: "LLM API 调用超时，请稍后重试",
+        code: "LLM_API_ERROR",
+        message: `所有 API Key 调用失败：${errorMessage}${errorCause}`,
         provider,
+        originalError: errorMessage,
+        errorType: error.name || error.constructor?.name || "Unknown",
       };
     }
-
-    // 如果是我们抛出的错误，直接抛出
-    if (error.code) {
-      throw error;
-    }
-
-    // 网络错误或其他错误
-    const errorMessage = error.message || String(error);
-    const errorCause = error.cause
-      ? ` (原因: ${error.cause.message || error.cause})`
-      : "";
-
-    throw {
-      code: "LLM_API_ERROR",
-      message: `LLM API 调用失败：${errorMessage}${errorCause}`,
-      provider,
-      originalError: errorMessage,
-      errorType: error.name || error.constructor?.name || "Unknown",
-    };
   }
+
+  // 所有 API Key 都失败了，抛出最后一个错误
+  throw (
+    lastError || {
+      code: "LLM_API_ERROR",
+      message: "所有 API Key 调用失败",
+      provider,
+    }
+  );
 }
 
 /**
