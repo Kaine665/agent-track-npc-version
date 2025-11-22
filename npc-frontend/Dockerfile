@@ -14,13 +14,15 @@ WORKDIR /app
 COPY package*.json ./
 
 # 安装所有依赖（包括 devDependencies，构建需要）
-RUN npm ci
+# 使用 npm install 而不是 npm ci，因为 npm ci 要求 package-lock.json 完全匹配
+RUN npm install
 
 # 复制源代码
 COPY . .
 
 # 构建参数：API 基础 URL（默认值，可在构建时覆盖）
-ARG VITE_API_BASE_URL=http://localhost:8000
+# 空字符串表示使用相对路径 /api，通过 Nginx 代理
+ARG VITE_API_BASE_URL=""
 ARG VITE_API_MODE=http
 
 # 设置环境变量（用于构建时）
