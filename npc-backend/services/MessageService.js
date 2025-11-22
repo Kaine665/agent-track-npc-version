@@ -216,14 +216,27 @@ async function sendMessage(options) {
 async function processLLMReplyAsync(options) {
   const { sessionId, userId, agentId, agent, historyEvents } = options;
 
+  console.log(`[MessageService] Starting LLM processing for session: ${sessionId}`, {
+    agentId,
+    model: agent.model,
+    provider: agent.provider,
+    historyEventsCount: historyEvents.length,
+  });
+
   try {
     // 调用 LLM API 生成回复
+    console.log(`[MessageService] Calling LLM API for session: ${sessionId}`);
     const reply = await llmService.generateReply({
       model: agent.model,
       provider: agent.provider,
       systemPrompt: agent.systemPrompt,
       messages: historyEvents,
       timeout: 30000, // 30 秒超时
+    });
+
+    console.log(`[MessageService] LLM API returned reply for session: ${sessionId}`, {
+      replyLength: reply?.length || 0,
+      replyPreview: reply?.substring(0, 100) || "(empty)",
     });
 
     // 创建 Agent 回复 Event
@@ -238,11 +251,22 @@ async function processLLMReplyAsync(options) {
       content: reply,
     });
 
-    console.log(`[MessageService] Agent reply created for session: ${sessionId}`);
+    console.log(`[MessageService] ✅ Agent reply created successfully for session: ${sessionId}`);
   } catch (error) {
-    // LLM 调用失败，记录错误但不抛出（不影响用户消息）
-    console.error(`[MessageService] Failed to process LLM reply for session ${sessionId}:`, error);
+    // LLM 调用失败，记录详细错误信息
+    console.error(`[MessageService] ❌ Failed to process LLM reply for session ${sessionId}:`, {
+      errorCode: error.code || "UNKNOWN_ERROR",
+      errorMessage: error.message || String(error),
+      errorStatus: error.status,
+      errorProvider: error.provider,
+      agentId,
+      model: agent.model,
+      provider: agent.provider,
+      stack: error.stack,
+    });
+    
     // 可以选择创建一个错误 Event，或者只记录日志
+    // 这里只记录日志，不创建错误 Event，避免影响用户体验
   }
 }
 
