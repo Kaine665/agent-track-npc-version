@@ -18,10 +18,15 @@ WORKDIR /app
 COPY package*.json ./
 
 # 安装所有依赖（包括 devDependencies，构建需要）
-# 使用 npm ci 而不是 npm install，更快且更可靠
+# 优先使用 npm ci（如果 package-lock.json 存在），否则使用 npm install
 # --prefer-offline: 优先使用缓存
 # --no-audit: 跳过安全审计，加快安装速度
-RUN npm ci --prefer-offline --no-audit --progress=false
+# 使用 shell 形式检查文件是否存在
+RUN if [ -f package-lock.json ]; then \
+      npm ci --prefer-offline --no-audit --progress=false; \
+    else \
+      npm install --prefer-offline --no-audit --progress=false; \
+    fi
 
 # 复制源代码（依赖安装完成后才复制代码，利用 Docker 层缓存）
 COPY . .
