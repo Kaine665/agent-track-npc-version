@@ -57,9 +57,11 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-your_mysql_password}
       DB_NAME: ${DB_NAME:-npc_db}
       # LLM 配置
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      # 注意：如果 .env 文件中的值包含逗号，需要用引号包裹
+      # 格式：OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     depends_on:
