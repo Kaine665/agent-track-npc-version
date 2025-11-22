@@ -74,6 +74,15 @@ const dbConfig = {
   charset: "utf8mb4",
 };
 
+// 调试日志：输出数据库配置（不输出密码）
+console.log("📊 Database Config:", {
+  host: dbConfig.host,
+  port: dbConfig.port,
+  user: dbConfig.user,
+  database: dbConfig.database,
+  password: dbConfig.password ? "***" : "(empty)",
+});
+
 /**
  * 创建数据库连接池
  *
