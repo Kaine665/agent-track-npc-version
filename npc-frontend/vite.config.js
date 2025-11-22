@@ -58,7 +58,20 @@ export default defineConfig({
   // 构建配置
   build: {
     outDir: 'dist',
-    sourcemap: true, // 生成 source map
+    sourcemap: false, // 生产环境关闭 source map，加快构建速度
+    minify: 'esbuild', // 使用 esbuild 压缩，比 terser 快很多
+    target: 'es2015', // 目标浏览器版本
+    cssCodeSplit: true, // CSS 代码分割
+    rollupOptions: {
+      output: {
+        // 手动分包，减少重复打包
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'antd-vendor': ['antd'],
+          'markdown-vendor': ['react-markdown', 'react-syntax-highlighter', 'remark-gfm', 'rehype-raw'],
+        },
+      },
+    },
   },
 });
 
