@@ -61,7 +61,8 @@ async function checkBackendAvailable(baseURL) {
     const timeoutId = setTimeout(() => controller.abort(), 2000); // 2秒超时
 
     // 如果 baseURL 为空字符串，使用相对路径（通过 Nginx 代理）
-    const healthURL = baseURL === "" 
+    // 如果 baseURL 是 /api，也需要使用相对路径
+    const healthURL = (baseURL === "" || baseURL === "/api")
       ? "/api/v1/health" 
       : `${baseURL}/api/v1/health`;
 
@@ -167,10 +168,11 @@ function notifyInitializationListeners() {
 
 // 异步初始化适配器（不阻塞应用启动）
 // 策略：先立即检测一次，如果失败则等待 10 秒后再检测
-// 如果 VITE_API_BASE_URL 为空字符串，使用相对路径（通过 Nginx 代理）
-const baseURL = import.meta.env.VITE_API_BASE_URL === "" 
+// 如果 VITE_API_BASE_URL 为 /api 或空字符串，使用相对路径（通过 Nginx 代理）
+const envBaseURL = import.meta.env.VITE_API_BASE_URL;
+const baseURL = (envBaseURL === "/api" || envBaseURL === "") 
   ? "" 
-  : (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000");
+  : (envBaseURL || "http://localhost:8000");
 
 // 立即检测后端（快速路径）
 checkBackendAvailable(baseURL)
