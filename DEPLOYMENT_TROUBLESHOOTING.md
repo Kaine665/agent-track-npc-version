@@ -178,7 +178,58 @@ node test-llm.js
 
 ---
 
-## 问题 3：其他常见问题
+## 问题 3：多个 API Key 配置后只读取第一个
+
+### 症状
+- 在 `.env` 文件中配置了多个 API Key（用逗号分隔）
+- 但容器内只读取到第一个 key
+- 多 API Key 故障转移功能无法正常工作
+
+### 原因
+Docker Compose 在处理包含特殊字符（如逗号）的环境变量值时，需要用引号包裹。
+
+### 解决方案
+
+1. **修改 docker-compose.yml**：
+   ```yaml
+   # 修改前
+   OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+   
+   # 修改后
+   OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
+   ```
+
+2. **确保 .env 文件格式正确**：
+   ```env
+   # 正确格式（一行，逗号分隔，无空格）
+   OPENROUTER_API_KEY=key1,key2,key3
+   ```
+
+3. **重启后端服务**：
+   ```bash
+   sudo docker-compose stop backend
+   sudo docker-compose up -d backend
+   ```
+
+4. **验证配置**：
+   ```bash
+   # 检查环境变量（应该显示 3 个 key）
+   sudo docker exec npc-backend sh -c 'echo "$OPENROUTER_API_KEY"'
+   
+   # 检查逗号数量（应该输出 2）
+   sudo docker exec npc-backend sh -c 'echo "$OPENROUTER_API_KEY"' | grep -o "," | wc -l
+   ```
+
+### 验证
+配置正确后，发送测试消息应该能看到多 API Key 故障转移的日志：
+```
+[LLMService] API Key 1/3 failed (401): User not found., trying next...
+[LLMService] API Key 2/3 succeeded
+```
+
+---
+
+## 问题 4：其他常见问题
 
 ### 数据库连接错误
 
