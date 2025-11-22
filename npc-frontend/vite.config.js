@@ -46,6 +46,9 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true, // 自动打开浏览器
+    // SPA 路由支持：确保刷新页面时不会 404
+    // Vite 默认支持，但显式配置更安全
+    // 所有未匹配的路由都会返回 index.html，由 React Router 处理
     // 代理配置（如果需要）
     // proxy: {
     //   '/api': {

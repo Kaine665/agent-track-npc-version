@@ -16,8 +16,8 @@
  */
 
 require("dotenv").config();
-const llmService = require("./services/LLMService");
-const { getConfigInfo, getEnabledProviders } = require("./config/models");
+const llmService = require("../services/LLMService");
+const { getConfigInfo, getEnabledProviders } = require("../config/models");
 
 async function testLLMService() {
   console.log("=".repeat(60));
