@@ -103,14 +103,14 @@ Accept: application/json
 
 **接口**：`POST /api/v1/users/login`
 
-**功能描述**：用户登录，通过 User ID 和密码验证身份
+**功能描述**：用户登录，**V1 版本中实际上只验证 User ID 是否存在，密码字段虽然存在但不会被真正验证。**
 
 **请求体**：
 
 ```json
 {
   "userId": "user_123",
-  "password": "password"
+  "password": "password"  // V1 中可选，不会被真正验证
 }
 ```
 
@@ -118,8 +118,8 @@ Accept: application/json
 
 | 字段名   | 类型   | 必填 | 说明                    | 示例       |
 | -------- | ------ | ---- | ----------------------- | ---------- |
-| userId   | string | 是   | 用户 ID                 | "user_123" |
-| password | string | 是   | 密码                    | "password" |
+| userId   | string | 是   | 用户 ID（唯一必填字段） | "user_123" |
+| password | string | 否   | 密码（V1 中不会被验证）| "password" |
 
 **成功响应**（HTTP 200）：
 
@@ -148,24 +148,20 @@ Accept: application/json
 }
 ```
 
-```json
-{
-  "success": false,
-  "error": {
-    "code": "INVALID_PASSWORD",
-    "message": "密码错误"
-  },
-  "timestamp": 1703001234567
-}
-```
-
 **业务规则**：
 
-1. User ID 不能为空
-2. 密码不能为空
-3. 如果用户不存在，返回 `USER_NOT_FOUND` 错误
-4. 如果密码错误，返回 `INVALID_PASSWORD` 错误
-5. 返回的用户信息不包含密码字段
+1. **User ID 不能为空**：User ID 是唯一必填字段
+2. **密码字段可选**：密码字段虽然存在，但 V1 中不会被真正验证
+3. **用户验证**：只要用户 ID 存在，就能成功登录（密码字段会被忽略）
+4. **错误处理**：
+   - 如果用户不存在，返回 `USER_NOT_FOUND` 错误
+   - 密码错误的情况在 V1 中不会发生（因为密码不会被验证）
+5. **返回的用户信息不包含密码字段**
+
+**重要说明**：
+- V1 版本中，密码功能是摆设，实际上只验证用户账号（User ID）是否存在
+- 密码字段虽然在前端表单和后端 API 中存在，但不会被真正使用
+- 真正的密码验证功能将在 V1.5 版本中实现（使用 bcrypt 加密）
 
 ---
 
@@ -173,7 +169,7 @@ Accept: application/json
 
 **接口**：`POST /api/v1/users/register`
 
-**功能描述**：注册新用户
+**功能描述**：注册新用户。**注意：V1 版本中密码字段虽然必填，但实际上不会被加密存储，也不会在登录时真正验证。**
 
 **请求体**：
 
@@ -181,7 +177,7 @@ Accept: application/json
 {
   "userId": "user_123",
   "username": "TestUser",
-  "password": "password"
+  "password": "password"  // V1 中虽然必填，但不会被加密，也不会真正使用
 }
 ```
 
@@ -191,7 +187,7 @@ Accept: application/json
 | -------- | ------ | ---- | --------------------- | ---------- |
 | userId   | string | 是   | 用户 ID（唯一标识符） | "user_123" |
 | username | string | 是   | 用户昵称（显示名称）  | "TestUser" |
-| password | string | 是   | 密码                  | "password" |
+| password | string | 是   | 密码（V1 中不会被加密）| "password" |
 
 **成功响应**（HTTP 201）：
 
@@ -244,10 +240,18 @@ Accept: application/json
 
 **业务规则**：
 
-1. User ID、用户名、密码都不能为空
-2. User ID 必须唯一，不能重复
-3. 用户名必须唯一，不能重复
-4. 注册成功后自动返回用户信息（不含密码）
+1. **User ID、用户名、密码都不能为空**：前端表单验证要求所有字段必填
+2. **User ID 必须唯一，不能重复**：如果 User ID 已存在，返回 `DUPLICATE_USER_ID` 错误
+3. **用户名必须唯一，不能重复**：如果用户名已存在，返回 `DUPLICATE_USERNAME` 错误
+4. **密码存储**：V1 中密码以明文形式存储，不会被加密（bcrypt 加密将在 V1.5 实现）
+5. **注册成功后自动返回用户信息（不含密码）**
+
+**重要说明**：
+- V1 版本中，密码字段虽然必填，但实际上：
+  - 密码以明文形式存储在数据库中（不安全）
+  - 登录时密码不会被真正验证
+  - 密码字段的存在只是为了保持 API 接口的一致性
+- 真正的密码加密和验证功能将在 V1.5 版本中实现（使用 bcrypt 加密）
 
 ---
 
