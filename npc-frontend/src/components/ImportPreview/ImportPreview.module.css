@@ -1,0 +1,75 @@
+.preview {
+  padding: 16px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.agentNameSection {
+  margin-bottom: 16px;
+}
+
+.agentNameSection h5 {
+  margin-bottom: 8px;
+}
+
+.infoSection {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.errorSection {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #fff1f0;
+  border: 1px solid #ffccc7;
+  border-radius: 4px;
+}
+
+.messagesList {
+  margin-bottom: 16px;
+}
+
+.messageCard {
+  margin-bottom: 12px;
+}
+
+.userMessage {
+  border-left: 3px solid #1890ff;
+}
+
+.assistantMessage {
+  border-left: 3px solid #52c41a;
+}
+
+.messageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.userIcon {
+  color: #1890ff;
+  font-size: 16px;
+}
+
+.assistantIcon {
+  color: #52c41a;
+  font-size: 16px;
+}
+
+.messageContent {
+  margin-top: 8px;
+}
+
+.addButtonSection {
+  margin-top: 16px;
+}
+
+.empty {
+  padding: 40px;
+  text-align: center;
+}
+

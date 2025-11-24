@@ -35,6 +35,7 @@
 const express = require("express");
 const router = express.Router();
 const agentService = require("../services/AgentService");
+const { authenticate } = require("../middleware/auth");
 
 /**
  * 统一响应格式
@@ -107,9 +108,12 @@ function sendErrorResponse(res, statusCode, code, message) {
  * - INVALID_MODEL → 400
  * - SYSTEM_ERROR → 500
  */
-router.post("/", async (req, res) => {
+router.post("/", authenticate, async (req, res) => {
   try {
     const agentData = req.body;
+    
+    // 从认证中间件获取 userId（优先），如果没有则从请求体获取（兼容旧代码）
+    agentData.userId = req.user?.userId || agentData.userId || agentData.createdBy;
 
     // 调用服务层创建 Agent
     const agent = await agentService.createAgent(agentData);
@@ -165,9 +169,10 @@ router.post("/", async (req, res) => {
  *   "timestamp": 1703001234567
  * }
  */
-router.get("/", async (req, res) => {
+router.get("/", authenticate, async (req, res) => {
   try {
-    const userId = req.query.userId;
+    // 从认证中间件获取 userId（优先），如果没有则从查询参数获取（兼容旧代码）
+    const userId = req.user?.userId || req.query.userId;
 
     // 验证 userId 参数
     if (!userId) {
@@ -224,10 +229,11 @@ router.get("/", async (req, res) => {
  * - NOT_FOUND → 404（Agent 不存在或不属于该用户）
  * - SYSTEM_ERROR → 500
  */
-router.get("/:id", async (req, res) => {
+router.get("/:id", authenticate, async (req, res) => {
   try {
     const agentId = req.params.id;
-    const userId = req.query.userId;
+    // 从认证中间件获取 userId（优先），如果没有则从查询参数获取（兼容旧代码）
+    const userId = req.user?.userId || req.query.userId;
 
     // 调试日志：记录请求参数
     console.log(`[DEBUG] GET /api/v1/agents/:id - agentId: ${agentId}, userId: ${userId}`);
@@ -301,6 +307,164 @@ router.get("/:id", async (req, res) => {
       "SYSTEM_ERROR",
       error.message || "获取 NPC 详情失败，请稍后重试"
     );
+  }
+});
+
+/**
+ * 更新 NPC
+ *
+ * 【路由】
+ * PUT /api/v1/agents/:id?userId=xxx
+ *
+ * 【功能说明】
+ * 更新指定 NPC 的信息
+ *
+ * 【路径参数】
+ * - id: NPC ID（必填）
+ *
+ * 【查询参数】
+ * - userId: 用户 ID（必填，用于权限验证）
+ *
+ * 【请求体】
+ * {
+ *   "name": "新的名称",
+ *   "systemPrompt": "新的人设描述",
+ *   "model": "gpt-4",
+ *   ...
+ * }
+ *
+ * 【工作流程】
+ * 1. 获取路径参数 id 和查询参数 userId
+ * 2. 获取请求体中的更新数据
+ * 3. 调用服务层更新 Agent
+ * 4. 返回更新后的 Agent
+ *
+ * 【错误处理】
+ * - VALIDATION_ERROR → 400（参数缺失或验证失败）
+ * - AGENT_NOT_FOUND → 404（Agent 不存在）
+ * - PERMISSION_DENIED → 403（无权修改此 Agent）
+ * - DUPLICATE_NAME → 409（名称已存在）
+ * - INVALID_MODEL → 400（不支持的模型）
+ * - SYSTEM_ERROR → 500
+ */
+router.put("/:id", authenticate, async (req, res) => {
+  try {
+    const agentId = req.params.id;
+    // 从认证中间件获取 userId（优先），如果没有则从查询参数获取（兼容旧代码）
+    const userId = req.user?.userId || req.query.userId;
+    const updateData = req.body;
+
+    // 验证参数
+    if (!agentId) {
+      return sendErrorResponse(
+        res,
+        400,
+        "VALIDATION_ERROR",
+        "NPC ID 不能为空"
+      );
+    }
+
+    if (!userId) {
+      return sendErrorResponse(
+        res,
+        400,
+        "VALIDATION_ERROR",
+        "userId 参数不能为空"
+      );
+    }
+
+    // 调用服务层更新 Agent
+    const updatedAgent = await agentService.updateAgent(agentId, userId, updateData);
+
+    // 返回成功响应
+    sendSuccessResponse(res, 200, updatedAgent);
+  } catch (error) {
+    // 错误处理
+    const code = error.code || "SYSTEM_ERROR";
+    const status =
+      code === "AGENT_NOT_FOUND"
+        ? 404
+        : code === "PERMISSION_DENIED"
+        ? 403
+        : code === "VALIDATION_ERROR" || code === "INVALID_MODEL"
+        ? 400
+        : code === "DUPLICATE_NAME"
+        ? 409
+        : 500;
+    sendErrorResponse(res, status, code, error.message || "更新失败，请稍后重试");
+  }
+});
+
+/**
+ * 删除 NPC
+ *
+ * 【路由】
+ * DELETE /api/v1/agents/:id?userId=xxx&hardDelete=false
+ *
+ * 【功能说明】
+ * 删除指定 NPC，支持软删除和硬删除
+ *
+ * 【路径参数】
+ * - id: NPC ID（必填）
+ *
+ * 【查询参数】
+ * - userId: 用户 ID（必填，用于权限验证）
+ * - hardDelete: 是否硬删除（可选，默认 false，软删除）
+ *
+ * 【工作流程】
+ * 1. 获取路径参数 id 和查询参数 userId、hardDelete
+ * 2. 调用服务层删除 Agent
+ * 3. 返回删除结果
+ *
+ * 【错误处理】
+ * - VALIDATION_ERROR → 400（参数缺失）
+ * - AGENT_NOT_FOUND → 404（Agent 不存在）
+ * - PERMISSION_DENIED → 403（无权删除此 Agent）
+ * - SYSTEM_ERROR → 500
+ */
+router.delete("/:id", authenticate, async (req, res) => {
+  try {
+    const agentId = req.params.id;
+    // 从认证中间件获取 userId（优先），如果没有则从查询参数获取（兼容旧代码）
+    const userId = req.user?.userId || req.query.userId;
+    const hardDelete = req.query.hardDelete === "true"; // 字符串转布尔值
+
+    // 验证参数
+    if (!agentId) {
+      return sendErrorResponse(
+        res,
+        400,
+        "VALIDATION_ERROR",
+        "NPC ID 不能为空"
+      );
+    }
+
+    if (!userId) {
+      return sendErrorResponse(
+        res,
+        400,
+        "VALIDATION_ERROR",
+        "userId 参数不能为空"
+      );
+    }
+
+    // 调用服务层删除 Agent
+    const result = await agentService.deleteAgent(agentId, userId, {
+      hardDelete: hardDelete,
+    });
+
+    // 返回成功响应
+    sendSuccessResponse(res, 200, result);
+  } catch (error) {
+    // 错误处理
+    const code = error.code || "SYSTEM_ERROR";
+    const status =
+      code === "AGENT_NOT_FOUND"
+        ? 404
+        : code === "PERMISSION_DENIED"
+        ? 403
+        : 500;
+    sendErrorResponse(res, status, code, error.message || "删除失败，请稍后重试");
   }
 });
 

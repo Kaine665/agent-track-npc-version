@@ -46,5 +46,10 @@
   .sendButton {
     flex-shrink: 0;
   }
+
+  .exportButton {
+    margin-left: 4px !important;
+    padding: 4px 8px !important;
+  }
 }
 

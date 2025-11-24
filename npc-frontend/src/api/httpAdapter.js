@@ -69,6 +69,38 @@ class HttpAdapter extends ApiAdapter {
   })();
 
   /**
+   * Token 存储
+   */
+  token = null;
+
+  /**
+   * 设置 Token
+   * 
+   * @param {string|null} token - JWT Token，如果为 null 则清除 Token
+   */
+  setToken(token) {
+    this.token = token;
+    if (token) {
+      localStorage.setItem('npc_access_token', token);
+    } else {
+      localStorage.removeItem('npc_access_token');
+    }
+  }
+
+  /**
+   * 从 localStorage 恢复 Token
+   * 
+   * @returns {string|null} Token 字符串或 null
+   */
+  loadToken() {
+    const token = localStorage.getItem('npc_access_token');
+    if (token) {
+      this.token = token;
+    }
+    return token;
+  }
+
+  /**
    * 发送 HTTP 请求
    *
    * 【功能说明】
@@ -101,12 +133,19 @@ class HttpAdapter extends ApiAdapter {
       console.log(`[DEBUG] HTTP Request: ${method} ${url}`);
 
       // 构建请求选项
+      const headers = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      };
+
+      // 添加 Token 到请求头（如果存在）
+      if (this.token) {
+        headers["Authorization"] = `Bearer ${this.token}`;
+      }
+
       const options = {
         method: method.toUpperCase(),
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
+        headers,
       };
 
       // 添加请求体
@@ -167,6 +206,22 @@ class HttpAdapter extends ApiAdapter {
           },
           timestamp: Date.now(),
         };
+      }
+
+      // Token 过期处理（401 错误）
+      if (response.status === 401) {
+        const errorCode = responseData.error?.code;
+        if (errorCode === 'TOKEN_EXPIRED' || errorCode === 'TOKEN_INVALID' || errorCode === 'UNAUTHORIZED') {
+          // 清除 Token，跳转到登录页
+          this.setToken(null);
+          localStorage.removeItem('npc_user');
+          // 延迟跳转，避免在请求过程中立即跳转
+          setTimeout(() => {
+            if (window.location.pathname !== '/register') {
+              window.location.href = '/';
+            }
+          }, 100);
+        }
       }
 
       // 检查 HTTP 状态码
@@ -292,6 +347,61 @@ class HttpAdapter extends ApiAdapter {
 
       // 调试日志
       console.log(`[DEBUG] Frontend: agents.getById response:`, response);
+
+      if (!response.success) {
+        return response;
+      }
+
+      // 后端返回的数据格式已经符合前端 API 格式，直接返回
+      return {
+        success: true,
+        data: response.data,
+        timestamp: response.timestamp,
+      };
+    },
+
+    /**
+     * 更新 NPC（HTTP）
+     *
+     * @param {string} agentId - NPC ID
+     * @param {string} userId - 用户 ID
+     * @param {object} data - 更新数据
+     * @returns {Promise<object>} 更新后的 NPC 数据
+     */
+    update: async (agentId, userId, data) => {
+      const response = await this.request(
+        "PUT",
+        `/api/v1/agents/${agentId}`,
+        { userId },
+        data
+      );
+
+      if (!response.success) {
+        return response;
+      }
+
+      // 后端返回的数据格式已经符合前端 API 格式，直接返回
+      return {
+        success: true,
+        data: response.data,
+        timestamp: response.timestamp,
+      };
+    },
+
+    /**
+     * 删除 NPC（HTTP）
+     *
+     * @param {string} agentId - NPC ID
+     * @param {string} userId - 用户 ID
+     * @param {boolean} [hardDelete=false] - 是否硬删除（默认 false，软删除）
+     * @returns {Promise<object>} 删除结果
+     */
+    delete: async (agentId, userId, hardDelete = false) => {
+      const response = await this.request(
+        "DELETE",
+        `/api/v1/agents/${agentId}`,
+        { userId, hardDelete: hardDelete.toString() }
+      );
 
       if (!response.success) {
         return response;
@@ -512,6 +622,97 @@ class HttpAdapter extends ApiAdapter {
         null,
         { userId, username, password }
       );
+      return response;
+    },
+
+    /**
+     * 忘记密码 - 重置密码
+     * @param {string} userId - 用户 ID
+     * @param {string} newPassword - 新密码
+     * @returns {Promise<object>} 用户信息
+     */
+    forgotPassword: async (userId, newPassword) => {
+      const response = await this.request(
+        "POST",
+        "/api/v1/users/forgot-password",
+        null,
+        { userId, newPassword }
+      );
+      return response;
+    },
+  };
+
+  /**
+   * Import API - HTTP 实现
+   */
+  import = {
+    /**
+     * 导入对话历史
+     * @param {object} data - 导入数据
+     * @param {string} data.agentName - Agent名称
+     * @param {Array} data.messages - 消息数组
+     * @returns {Promise<object>} 导入结果
+     */
+    conversations: async (data) => {
+      const response = await this.request(
+        "POST",
+        "/api/v1/import/conversations",
+        null,
+        data
+      );
+      return response;
+    },
+  };
+
+  /**
+   * Feedbacks API - HTTP 实现
+   */
+  feedbacks = {
+    /**
+     * 提交反馈
+     * @param {object} data - 反馈数据
+     * @param {string} data.userId - 用户 ID
+     * @param {string} data.type - 反馈类型（bug, feature, question）
+     * @param {string} data.title - 反馈标题
+     * @param {string} data.content - 反馈内容
+     * @param {Array} [data.screenshots] - 截图URL数组（可选）
+     * @returns {Promise<object>} 反馈结果
+     */
+    submit: async (data) => {
+      const response = await this.request(
+        "POST",
+        "/api/v1/feedbacks",
+        null,
+        data
+      );
+      return response;
+    },
+
+    /**
+     * 查询反馈列表
+     * @param {object} options - 查询选项
+     * @param {string} options.userId - 用户 ID
+     * @param {number} [options.page=1] - 页码
+     * @param {number} [options.pageSize=20] - 每页数量
+     * @param {string} [options.type] - 反馈类型筛选
+     * @param {string} [options.status] - 状态筛选
+     * @returns {Promise<object>} 反馈列表
+     */
+    list: async (options = {}) => {
+      const response = await this.request("GET", "/api/v1/feedbacks", options);
+      return response;
+    },
+
+    /**
+     * 查询反馈详情
+     * @param {string} id - 反馈 ID
+     * @param {string} userId - 用户 ID
+     * @returns {Promise<object>} 反馈详情
+     */
+    get: async (id, userId) => {
+      const response = await this.request("GET", `/api/v1/feedbacks/${id}`, {
+        userId,
+      });
       return response;
     },
   };

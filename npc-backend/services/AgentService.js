@@ -381,8 +381,187 @@ function getAgentById(agentId) {
   return agentRepository.findById(agentId);
 }
 
+/**
+ * 更新 Agent
+ *
+ * 【功能说明】
+ * 更新指定 Agent 的信息，包含权限验证和字段验证
+ *
+ * 【工作流程】
+ * 1. 查询 Agent 是否存在
+ * 2. 验证权限（只能修改自己的 Agent）
+ * 3. 验证更新数据
+ * 4. 检查名称唯一性（如果更新了名称）
+ * 5. 调用 Repository 更新
+ * 6. 返回更新后的 Agent
+ *
+ * 【错误处理】
+ * - AGENT_NOT_FOUND → Agent 不存在
+ * - PERMISSION_DENIED → 无权修改此 Agent
+ * - VALIDATION_ERROR → 字段验证失败
+ * - DUPLICATE_NAME → 名称已存在
+ *
+ * @param {string} agentId - Agent ID
+ * @param {string} userId - 用户 ID（用于权限验证）
+ * @param {Object} updateData - 更新数据
+ * @returns {Promise<Object>} 更新后的 Agent 对象
+ */
+async function updateAgent(agentId, userId, updateData) {
+  // 1. 查询 Agent 是否存在
+  const agent = await agentRepository.findById(agentId);
+  
+  if (!agent) {
+    const error = new Error('NPC 不存在');
+    error.code = 'AGENT_NOT_FOUND';
+    throw error;
+  }
+
+  // 2. 验证权限（只能修改自己的 Agent）
+  if (agent.createdBy !== userId) {
+    const error = new Error('无权修改此 NPC');
+    error.code = 'PERMISSION_DENIED';
+    throw error;
+  }
+
+  // 3. 验证更新数据
+  const allowedFields = ['name', 'type', 'systemPrompt', 'model', 'provider', 'avatarUrl'];
+  const filteredData = {};
+  
+  for (const field of allowedFields) {
+    if (updateData[field] !== undefined) {
+      filteredData[field] = updateData[field];
+    }
+  }
+
+  // 如果更新了名称，验证名称
+  if (filteredData.name !== undefined) {
+    const nameLength = filteredData.name.trim().length;
+    if (nameLength === 0) {
+      const error = new Error('NPC 名称不能为空');
+      error.code = 'VALIDATION_ERROR';
+      throw error;
+    }
+    if (nameLength > 50) {
+      const error = new Error('NPC 名称不能超过 50 字符');
+      error.code = 'VALIDATION_ERROR';
+      throw error;
+    }
+
+    // 检查名称唯一性（排除当前 Agent）
+    const nameExists = await agentRepository.checkNameExists(userId, filteredData.name);
+    if (nameExists) {
+      // 检查是否是当前 Agent 的名称
+      const existingAgentId = await agentRepository.getExistingAgentIdByName(userId, filteredData.name);
+      if (existingAgentId !== agentId) {
+        const error = new Error('该名称已存在，请使用其他名称');
+        error.code = 'DUPLICATE_NAME';
+        throw error;
+      }
+    }
+  }
+
+  // 如果更新了 systemPrompt，验证长度
+  if (filteredData.systemPrompt !== undefined) {
+    if (typeof filteredData.systemPrompt !== 'string') {
+      const error = new Error('人设描述格式不正确');
+      error.code = 'VALIDATION_ERROR';
+      throw error;
+    }
+    const promptLength = filteredData.systemPrompt.trim().length;
+    if (promptLength > 5000) {
+      const error = new Error('人设描述不能超过 5000 字符');
+      error.code = 'VALIDATION_ERROR';
+      throw error;
+    }
+  }
+
+  // 如果更新了 model，验证模型有效性
+  if (filteredData.model !== undefined) {
+    if (!isValidModel(filteredData.model)) {
+      const error = new Error(`不支持的模型：${filteredData.model}`);
+      error.code = 'INVALID_MODEL';
+      throw error;
+    }
+    // V1 版本统一使用 OpenRouter
+    filteredData.provider = 'openrouter';
+  }
+
+  // 4. 更新 Agent
+  const updatedAgent = await agentRepository.update(agentId, filteredData);
+
+  return updatedAgent;
+}
+
+/**
+ * 删除 Agent
+ *
+ * 【功能说明】
+ * 删除指定的 Agent，支持软删除和硬删除
+ *
+ * 【工作流程】
+ * 1. 查询 Agent 是否存在
+ * 2. 验证权限（只能删除自己的 Agent）
+ * 3. 根据选项执行软删除或硬删除
+ * 4. 返回删除结果
+ *
+ * 【错误处理】
+ * - AGENT_NOT_FOUND → Agent 不存在
+ * - PERMISSION_DENIED → 无权删除此 Agent
+ *
+ * @param {string} agentId - Agent ID
+ * @param {string} userId - 用户 ID（用于权限验证）
+ * @param {Object} options - 删除选项
+ * @param {boolean} options.hardDelete - 是否硬删除（默认 false，软删除）
+ * @returns {Promise<Object>} 删除结果
+ */
+async function deleteAgent(agentId, userId, options = {}) {
+  const { hardDelete = false } = options;
+
+  // 1. 查询 Agent 是否存在
+  const agent = await agentRepository.findById(agentId);
+  
+  if (!agent) {
+    const error = new Error('NPC 不存在');
+    error.code = 'AGENT_NOT_FOUND';
+    throw error;
+  }
+
+  // 2. 验证权限（只能删除自己的 Agent）
+  if (agent.createdBy !== userId) {
+    const error = new Error('无权删除此 NPC');
+    error.code = 'PERMISSION_DENIED';
+    throw error;
+  }
+
+  if (hardDelete) {
+    // 硬删除：物理删除 Agent
+    // 注意：这会永久删除数据，关联的对话历史保留（不删除）
+    await agentRepository.remove(agentId);
+    
+    return {
+      success: true,
+      message: 'NPC 已永久删除',
+      deletedAt: Date.now(),
+    };
+  } else {
+    // 软删除：标记为已删除，不物理删除数据
+    await agentRepository.update(agentId, {
+      deleted: true,
+      deletedAt: Date.now(),
+    });
+
+    return {
+      success: true,
+      message: 'NPC 已删除',
+      deletedAt: Date.now(),
+    };
+  }
+}
+
 module.exports = {
   createAgent,
   getAgentList,
   getAgentById,
+  updateAgent,
+  deleteAgent,
 };

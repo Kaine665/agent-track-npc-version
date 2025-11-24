@@ -16,12 +16,13 @@
  * @created 2025-11-21
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Typography, Space, Button, Empty, message, Avatar, Dropdown, Alert } from 'antd';
-import { PlusOutlined, RobotOutlined, UserOutlined, LogoutOutlined } from '@ant-design/icons';
+import { Layout, Typography, Space, Button, Empty, message, Avatar, Dropdown, Alert, Input, Modal } from 'antd';
+import { PlusOutlined, RobotOutlined, UserOutlined, LogoutOutlined, SearchOutlined, FileTextOutlined, MessageOutlined } from '@ant-design/icons';
 import api from '../../api';
 import AgentCard from '../../components/AgentCard/AgentCard';
+import AgentEditModal from '../../components/AgentEditModal/AgentEditModal';
 import Loading from '../../components/Loading/Loading';
 import { useAuth } from '../../context/AuthContext';
 import LoginModal from '../../components/LoginModal/LoginModal';
@@ -44,8 +45,11 @@ const AgentList = () => {
   const [error, setError] = useState(null);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [showBackendWarning, setShowBackendWarning] = useState(false);
+  const [searchKeyword, setSearchKeyword] = useState(''); // 搜索关键词
   const pollingRef = useRef(null); // 轮询引用
   const lastFetchTimeRef = useRef(0); // 上次获取数据的时间戳
+  const [editingAgent, setEditingAgent] = useState(null); // 正在编辑的Agent
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false); // 编辑模态框显示状态
 
   // 获取 NPC 列表
   const fetchAgents = async () => {
@@ -215,6 +219,55 @@ const AgentList = () => {
     navigate(`/chat/${agentId}`);
   };
 
+  // 处理编辑NPC
+  const handleEdit = (agent) => {
+    setEditingAgent(agent);
+    setIsEditModalVisible(true);
+  };
+
+  // 处理删除NPC
+  const handleDelete = (agent) => {
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定要删除 NPC "${agent.name}" 吗？删除后相关对话历史将保留。`,
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          const response = await api.agents.delete(agent.id, agent.createdBy, false); // 软删除
+          if (response.success) {
+            message.success('NPC 已删除');
+            // 刷新列表
+            fetchAgents();
+          } else {
+            throw new Error(response.error?.message || '删除失败');
+          }
+        } catch (error) {
+          console.error('Delete agent error:', error);
+          message.error(error.message || '删除失败，请稍后重试');
+        }
+      },
+    });
+  };
+
+  // 编辑成功回调
+  const handleEditSuccess = () => {
+    // 刷新列表
+    fetchAgents();
+  };
+
+  // 根据搜索关键词过滤agents列表
+  const filteredAgents = useMemo(() => {
+    if (!searchKeyword.trim()) {
+      return agents;
+    }
+    const keyword = searchKeyword.trim().toLowerCase();
+    return agents.filter(agent => 
+      agent.name.toLowerCase().includes(keyword)
+    );
+  }, [agents, searchKeyword]);
+
   // 用户菜单
   const userMenuProps = {
     items: [
@@ -296,7 +349,18 @@ const AgentList = () => {
 
     return (
       <div style={{ maxWidth: 800, margin: '0 auto', width: '100%' }}>
-        {/* 创建按钮放在列表顶部 */}
+        {/* 搜索框 */}
+        <Input
+          placeholder="搜索"
+          prefix={<SearchOutlined />}
+          value={searchKeyword}
+          onChange={(e) => setSearchKeyword(e.target.value)}
+          allowClear
+          className={styles.searchInput}
+          style={{ marginBottom: 16, height: 40 }}
+        />
+
+        {/* 创建按钮放在搜索框下方 */}
         <Button 
           type="dashed" 
           block 
@@ -308,14 +372,23 @@ const AgentList = () => {
           创建新 NPC
         </Button>
 
-        {/* NPC 列表 */}
-        {agents.map((agent) => (
-          <AgentCard 
-            key={agent.id} 
-            agent={agent} 
-            onClick={handleChat}
+        {/* NPC 列表 - 显示过滤后的结果 */}
+        {filteredAgents.length === 0 ? (
+          <Empty
+            image={<SearchOutlined style={{ fontSize: 60, color: '#d9d9d9' }} />}
+            description={`未找到名称包含"${searchKeyword}"的 NPC`}
           />
-        ))}
+        ) : (
+          filteredAgents.map((agent) => (
+            <AgentCard 
+              key={agent.id} 
+              agent={agent} 
+              onClick={handleChat}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          ))
+        )}
       </div>
     );
   };
@@ -343,7 +416,29 @@ const AgentList = () => {
         </div>
         
         {/* 用户信息区域 */}
-        <div style={{ flexShrink: 0 }}>
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* 反馈按钮 */}
+          <Button 
+            type="text" 
+            icon={<MessageOutlined />}
+            onClick={() => navigate('/feedback')}
+            className={styles.feedbackButton}
+            style={{ color: '#595959' }}
+          >
+            反馈
+          </Button>
+          
+          {/* 更新日志按钮 */}
+          <Button 
+            type="text" 
+            icon={<FileTextOutlined />}
+            onClick={() => navigate('/updates')}
+            className={styles.updateLogButton}
+            style={{ color: '#595959' }}
+          >
+            更新日志
+          </Button>
+          
           {user ? (
             <Dropdown menu={userMenuProps} placement="bottomRight">
               <Space style={{ cursor: 'pointer' }}>
@@ -386,6 +481,17 @@ const AgentList = () => {
       <LoginModal 
         open={isLoginModalOpen} 
         onClose={() => setIsLoginModalOpen(false)} 
+      />
+
+      {/* 编辑NPC模态框 */}
+      <AgentEditModal
+        agent={editingAgent}
+        open={isEditModalVisible}
+        onCancel={() => {
+          setIsEditModalVisible(false);
+          setEditingAgent(null);
+        }}
+        onSuccess={handleEditSuccess}
       />
     </Layout>
   );

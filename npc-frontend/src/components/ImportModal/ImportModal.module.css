@@ -1,0 +1,37 @@
+.modalContent {
+  padding: 8px 0;
+}
+
+.steps {
+  margin-bottom: 24px;
+}
+
+.stepContentWrapper {
+  min-height: 400px;
+  margin-bottom: 24px;
+}
+
+.stepContent {
+  padding: 16px 0;
+}
+
+.inputSection {
+  margin-bottom: 16px;
+}
+
+.textArea {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+}
+
+.buttonSection {
+  text-align: right;
+  margin-bottom: 16px;
+}
+
+.footer {
+  text-align: right;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+}
+

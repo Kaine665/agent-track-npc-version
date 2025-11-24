@@ -33,6 +33,7 @@
 const express = require("express");
 const router = express.Router();
 const messageService = require("../services/MessageService");
+const { authenticate } = require("../middleware/auth");
 
 /**
  * 统一响应格式
@@ -114,9 +115,11 @@ function sendErrorResponse(res, statusCode, code, message) {
  * - LLM_API_ERROR → 502（LLM API 调用失败）
  * - SYSTEM_ERROR → 500（系统错误）
  */
-router.post("/", async (req, res) => {
+router.post("/", authenticate, async (req, res) => {
   try {
-    const { userId, agentId, text, contextLimit } = req.body;
+    const { userId: bodyUserId, agentId, text, contextLimit } = req.body;
+    // 从认证中间件获取 userId（优先），如果没有则从请求体获取（兼容旧代码）
+    const userId = req.user?.userId || bodyUserId;
 
     // 调用服务层发送消息（异步处理，立即返回）
     // MessageService.sendMessage 现在会：
@@ -183,7 +186,7 @@ router.post("/", async (req, res) => {
  *   }
  * }
  */
-router.get("/check", async (req, res) => {
+router.get("/check", authenticate, async (req, res) => {
   try {
     const { sessionId, lastEventId } = req.query;
 

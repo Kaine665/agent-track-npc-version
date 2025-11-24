@@ -205,9 +205,13 @@ async function callLLMAPI(
   let lastError = null;
   let usedApiKeyIndex = -1;
 
+  console.log(`[LLMService] 🔄 Starting LLM API call with ${apiKeys.length} API Key(s) for provider: ${provider}`);
+
   for (let i = 0; i < apiKeys.length; i++) {
     const apiKey = apiKeys[i];
     usedApiKeyIndex = i;
+    
+    console.log(`[LLMService] 🔑 Trying API Key ${i + 1}/${apiKeys.length}...`);
 
     // 创建 AbortController 用于超时控制
     const controller = new AbortController();
@@ -241,7 +245,10 @@ async function callLLMAPI(
         if (shouldRetryNext && i < apiKeys.length - 1) {
           // 记录错误，但继续尝试下一个 API Key
           console.warn(
-            `[LLMService] API Key ${i + 1}/${apiKeys.length} failed (${errorStatus}): ${errorMessage}, trying next...`
+            `[LLMService] ⚠️  API Key ${i + 1}/${apiKeys.length} failed (${errorStatus}): ${errorMessage}`
+          );
+          console.warn(
+            `[LLMService] 🔄 Trying next API Key (${i + 2}/${apiKeys.length})...`
           );
           lastError = {
             code: "LLM_API_ERROR",
@@ -275,8 +282,10 @@ async function callLLMAPI(
         // 成功！记录使用的 API Key 索引（用于日志）
         if (i > 0) {
           console.log(
-            `[LLMService] Successfully used API Key ${i + 1}/${apiKeys.length} after ${i} failed attempts`
+            `[LLMService] ✅ Successfully used API Key ${i + 1}/${apiKeys.length} after ${i} failed attempt(s)`
           );
+        } else {
+          console.log(`[LLMService] ✅ Successfully used API Key ${i + 1}/${apiKeys.length}`);
         }
         return data.choices[0].message.content.trim();
       }
@@ -361,13 +370,24 @@ async function callLLMAPI(
   }
 
   // 所有 API Key 都失败了，抛出最后一个错误
-  throw (
-    lastError || {
-      code: "LLM_API_ERROR",
-      message: "所有 API Key 调用失败",
-      provider,
-    }
-  );
+  if (lastError) {
+    console.error(`[LLMService] ❌ All ${apiKeys.length} API Key(s) failed. Last error:`, {
+      code: lastError.code,
+      message: lastError.message,
+      status: lastError.status,
+      provider: lastError.provider,
+      apiKeyIndex: lastError.apiKeyIndex,
+    });
+    throw lastError;
+  }
+  
+  // 理论上不应该到达这里
+  console.error(`[LLMService] ❌ Unexpected error: All API Keys failed but no error recorded`);
+  throw {
+    code: "LLM_API_ERROR",
+    message: "所有 API Key 调用失败",
+    provider,
+  };
 }
 
 /**

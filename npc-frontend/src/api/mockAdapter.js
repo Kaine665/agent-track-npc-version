@@ -170,6 +170,124 @@ class MockAdapter extends ApiAdapter {
         timestamp: Date.now()
       };
     },
+
+    /**
+     * 更新 NPC（Mock）
+     *
+     * @param {string} agentId - NPC ID
+     * @param {string} userId - 用户 ID
+     * @param {object} data - 更新数据
+     * @returns {Promise<object>} 更新后的 NPC 数据
+     */
+    update: async (agentId, userId, data) => {
+      await delay(500);
+      
+      const agentIndex = mockAgents.findIndex(a => a.id === agentId);
+      if (agentIndex === -1) {
+        return {
+          success: false,
+          error: { code: 'AGENT_NOT_FOUND', message: 'NPC 不存在' },
+          timestamp: Date.now()
+        };
+      }
+
+      const agent = mockAgents[agentIndex];
+      if (agent.userId !== userId) {
+        return {
+          success: false,
+          error: { code: 'PERMISSION_DENIED', message: '无权修改此 NPC' },
+          timestamp: Date.now()
+        };
+      }
+
+      // 如果更新了名称，检查名称唯一性
+      if (data.name && data.name !== agent.name) {
+        const isDuplicate = mockAgents.some(
+          a => a.id !== agentId && a.userId === userId && a.name.toLowerCase() === data.name.toLowerCase()
+        );
+        if (isDuplicate) {
+          return {
+            success: false,
+            error: { code: 'DUPLICATE_NAME', message: '该名称已存在，请使用其他名称' },
+            timestamp: Date.now()
+          };
+        }
+      }
+
+      // 更新 Agent
+      const updatedAgent = {
+        ...agent,
+        ...data,
+        updatedAt: Date.now()
+      };
+      mockAgents[agentIndex] = updatedAgent;
+
+      return {
+        success: true,
+        data: updatedAgent,
+        timestamp: Date.now()
+      };
+    },
+
+    /**
+     * 删除 NPC（Mock）
+     *
+     * @param {string} agentId - NPC ID
+     * @param {string} userId - 用户 ID
+     * @param {boolean} [hardDelete=false] - 是否硬删除（默认 false，软删除）
+     * @returns {Promise<object>} 删除结果
+     */
+    delete: async (agentId, userId, hardDelete = false) => {
+      await delay(300);
+      
+      const agentIndex = mockAgents.findIndex(a => a.id === agentId);
+      if (agentIndex === -1) {
+        return {
+          success: false,
+          error: { code: 'AGENT_NOT_FOUND', message: 'NPC 不存在' },
+          timestamp: Date.now()
+        };
+      }
+
+      const agent = mockAgents[agentIndex];
+      if (agent.userId !== userId) {
+        return {
+          success: false,
+          error: { code: 'PERMISSION_DENIED', message: '无权删除此 NPC' },
+          timestamp: Date.now()
+        };
+      }
+
+      if (hardDelete) {
+        // 硬删除：从数组中移除
+        mockAgents.splice(agentIndex, 1);
+        return {
+          success: true,
+          data: {
+            success: true,
+            message: 'NPC 已永久删除',
+            deletedAt: Date.now()
+          },
+          timestamp: Date.now()
+        };
+      } else {
+        // 软删除：标记为已删除
+        mockAgents[agentIndex] = {
+          ...agent,
+          deleted: true,
+          deletedAt: Date.now()
+        };
+        return {
+          success: true,
+          data: {
+            success: true,
+            message: 'NPC 已删除',
+            deletedAt: Date.now()
+          },
+          timestamp: Date.now()
+        };
+      }
+    },
   };
 
   /**
@@ -326,6 +444,194 @@ class MockAdapter extends ApiAdapter {
           createdAt: Date.now(),
         },
         timestamp: Date.now(),
+      };
+    },
+
+    /**
+     * 忘记密码 - 重置密码（Mock）
+     * @param {string} userId - 用户 ID
+     * @param {string} newPassword - 新密码
+     * @returns {Promise<object>} 用户信息
+     */
+    forgotPassword: async (userId, newPassword) => {
+      await delay(500);
+      if (userId === 'not_exist_user') {
+        return {
+          success: false,
+          error: { code: 'USER_NOT_FOUND', message: '账号不存在' },
+          timestamp: Date.now(),
+        };
+      }
+      return {
+        success: true,
+        data: {
+          id: userId,
+          username: `MockUser_${userId}`,
+          createdAt: Date.now(),
+        },
+        timestamp: Date.now(),
+      };
+    },
+  };
+
+  /**
+   * Import API - Mock 实现
+   */
+  import = {
+    /**
+     * 导入对话历史
+     * @param {object} data - 导入数据
+     * @param {string} data.agentName - Agent名称
+     * @param {Array} data.messages - 消息数组
+     * @returns {Promise<object>} 导入结果
+     */
+    conversations: async (data) => {
+      await delay(1000);
+      
+      // Mock实现：模拟导入逻辑
+      const { agentName, messages } = data;
+      
+      if (!agentName || !messages || !Array.isArray(messages) || messages.length === 0) {
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_FORMAT',
+            message: 'Agent名称或消息列表不能为空',
+          },
+          timestamp: Date.now(),
+        };
+      }
+
+      // 模拟创建Agent和Events
+      const agentId = `agent_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      const sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      
+      // 模拟导入结果
+      return {
+        success: true,
+        data: {
+          agentId: agentId,
+          sessionId: sessionId,
+          imported: messages.length,
+          skipped: 0,
+          errors: [],
+        },
+        timestamp: Date.now(),
+      };
+    },
+  };
+
+  /**
+   * Feedbacks API - Mock 实现
+   */
+  feedbacks = {
+    /**
+     * 提交反馈（Mock）
+     * @param {object} data - 反馈数据
+     * @returns {Promise<object>} 反馈结果
+     */
+    submit: async (data) => {
+      await delay(500); // 模拟网络延迟
+
+      if (!data.userId || !data.type || !data.title || !data.content) {
+        return {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: '反馈类型、标题和内容不能为空'
+          },
+          timestamp: Date.now()
+        };
+      }
+
+      const validTypes = ['bug', 'feature', 'question'];
+      if (!validTypes.includes(data.type)) {
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_TYPE',
+            message: '无效的反馈类型'
+          },
+          timestamp: Date.now()
+        };
+      }
+
+      // 模拟创建反馈
+      const feedback = {
+        id: `feedback_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        userId: data.userId,
+        type: data.type,
+        title: data.title,
+        content: data.content,
+        status: 'pending',
+        userAgent: data.userAgent || null,
+        screenshots: data.screenshots || null,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        resolvedAt: null,
+      };
+
+      return {
+        success: true,
+        data: feedback,
+        timestamp: Date.now(),
+      };
+    },
+
+    /**
+     * 查询反馈列表（Mock）
+     * @param {object} options - 查询选项
+     * @returns {Promise<object>} 反馈列表
+     */
+    list: async (options = {}) => {
+      await delay(300); // 模拟网络延迟
+
+      if (!options.userId) {
+        return {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: '用户 ID 不能为空'
+          },
+          timestamp: Date.now()
+        };
+      }
+
+      // Mock 数据：返回空列表
+      return {
+        success: true,
+        data: [],
+        timestamp: Date.now(),
+      };
+    },
+
+    /**
+     * 查询反馈详情（Mock）
+     * @param {string} id - 反馈 ID
+     * @param {string} userId - 用户 ID
+     * @returns {Promise<object>} 反馈详情
+     */
+    get: async (id, userId) => {
+      await delay(300); // 模拟网络延迟
+
+      if (!id || !userId) {
+        return {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: '反馈 ID 和用户 ID 不能为空'
+          },
+          timestamp: Date.now()
+        };
+      }
+
+      return {
+        success: false,
+        error: {
+          code: 'FEEDBACK_NOT_FOUND',
+          message: '反馈不存在'
+        },
+        timestamp: Date.now()
       };
     },
   };

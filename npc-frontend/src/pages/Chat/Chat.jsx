@@ -18,11 +18,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Layout, Typography, Input, Button, Space, message, Avatar, Empty, Spin } from 'antd';
-import { ArrowLeftOutlined, SendOutlined, UserOutlined, RobotOutlined, LoadingOutlined } from '@ant-design/icons';
+import { Layout, Typography, Input, Button, Space, message, Avatar, Empty, Spin, Dropdown } from 'antd';
+import { ArrowLeftOutlined, SendOutlined, UserOutlined, RobotOutlined, LoadingOutlined, DownloadOutlined, FileTextOutlined, FileWordOutlined, FileMarkdownOutlined } from '@ant-design/icons';
 import api from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import MessageBubble from '../../components/MessageBubble/MessageBubble';
+import { exportConversation } from '../../utils/export';
 import styles from './Chat.module.css';
 
 const { Header, Content, Footer } = Layout;
@@ -291,6 +292,84 @@ const Chat = () => {
     navigate('/agents', { state: { fromChat: true } });
   };
 
+  // 导出功能处理
+  const handleExport = async (format) => {
+    console.log('[导出] 开始导出，格式:', format, '消息数量:', messages?.length, 'Agent:', agent?.name);
+    
+    if (!messages || messages.length === 0) {
+      message.warning('没有可导出的消息');
+      return;
+    }
+
+    if (!agent) {
+      message.warning('Agent 信息不完整');
+      return;
+    }
+
+    try {
+      // 显示加载提示
+      const loadingKey = `export-${format}-${Date.now()}`;
+      message.loading({
+        content: format === 'image' ? '正在生成图片...' : '正在导出...',
+        key: loadingKey,
+        duration: 0,
+      });
+
+      // 生成文件名
+      const timestamp = Date.now();
+      const agentName = agent.name || 'AI助手';
+      const filename = `对话记录_${agentName}_${timestamp}`;
+
+      console.log('[导出] 调用导出函数，格式:', format, '文件名:', filename);
+
+      // 进度回调（仅图片导出支持）
+      const onProgress = format === 'image' 
+        ? (progress, text) => {
+            message.loading({
+              content: text || `导出进度: ${Math.round(progress * 100)}%`,
+              key: loadingKey,
+              duration: 0,
+            });
+          }
+        : undefined;
+
+      // 调用导出函数
+      await exportConversation(format, messages, agent, filename, onProgress);
+
+      console.log('[导出] 导出成功');
+
+      // 关闭加载提示
+      message.destroy(loadingKey);
+      message.success('导出成功');
+    } catch (error) {
+      console.error('[导出] 导出失败:', error);
+      console.error('[导出] 错误堆栈:', error.stack);
+      message.error(`导出失败: ${error.message || '未知错误'}`);
+    }
+  };
+
+  // 导出菜单配置
+  const exportMenuItems = [
+    {
+      key: 'txt',
+      label: '导出为文本',
+      icon: <FileTextOutlined />,
+      onClick: () => handleExport('txt'),
+    },
+    {
+      key: 'word',
+      label: '导出为 Word',
+      icon: <FileWordOutlined />,
+      onClick: () => handleExport('word'),
+    },
+    {
+      key: 'markdown',
+      label: '导出为 Markdown',
+      icon: <FileMarkdownOutlined />,
+      onClick: () => handleExport('markdown'),
+    },
+  ];
+
   // 渲染内容
   if (loading) {
     return (
@@ -360,6 +439,26 @@ const Chat = () => {
             {agent?.model || '未知模型'} • {agent?.type === 'special' ? '特定角色' : '通用助手'}
           </div>
         </div>
+
+        {/* 导出按钮 */}
+        {messages.length > 0 && (
+          <Dropdown 
+            menu={{ items: exportMenuItems }} 
+            placement="bottomRight"
+            trigger={['click']}
+          >
+            <Button 
+              type="text" 
+              icon={<DownloadOutlined />} 
+              style={{ 
+                marginLeft: 8, 
+                flexShrink: 0,
+                color: '#666'
+              }}
+              title="导出对话"
+            />
+          </Dropdown>
+        )}
       </Header>
 
       {/* 消息列表区域 */}

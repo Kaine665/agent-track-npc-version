@@ -109,6 +109,8 @@ function createApp() {
   app.use("/api/v1/history", require("./routes/history"));
   app.use("/api/v1/sessions", require("./routes/sessions"));
   app.use("/api/v1/users", require("./routes/users")); // 新增用户路由
+  app.use("/api/v1/import", require("./routes/import")); // 导入路由
+  app.use("/api/v1/feedbacks", require("./routes/feedbacks")); // 反馈路由
   // TODO: 后续阶段添加其他 API 路由
 
   // 配置 404 错误处理（在所有路由之后，错误处理之前）

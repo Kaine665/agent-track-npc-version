@@ -103,6 +103,33 @@ class ApiAdapter {
     getById: async (agentId, userId) => {
       throw new Error('Not implemented: agents.getById');
     },
+
+    /**
+     * 更新 NPC
+     *
+     * @param {string} agentId - NPC ID
+     * @param {string} userId - 用户 ID
+     * @param {object} data - 更新数据
+     * @param {string} [data.name] - NPC 名称
+     * @param {string} [data.systemPrompt] - NPC 人设描述
+     * @param {string} [data.model] - LLM 模型名称
+     * @returns {Promise<object>} 更新后的 NPC 数据
+     */
+    update: async (agentId, userId, data) => {
+      throw new Error('Not implemented: agents.update');
+    },
+
+    /**
+     * 删除 NPC
+     *
+     * @param {string} agentId - NPC ID
+     * @param {string} userId - 用户 ID
+     * @param {boolean} [hardDelete=false] - 是否硬删除（默认 false，软删除）
+     * @returns {Promise<object>} 删除结果
+     */
+    delete: async (agentId, userId, hardDelete = false) => {
+      throw new Error('Not implemented: agents.delete');
+    },
   };
 
   /**
@@ -177,6 +204,32 @@ class ApiAdapter {
      */
     register: async (userId, username, password) => {
       throw new Error('Not implemented: users.register');
+    },
+
+    /**
+     * 忘记密码 - 重置密码
+     * @param {string} userId - 用户 ID
+     * @param {string} newPassword - 新密码
+     * @returns {Promise<object>} 用户信息
+     */
+    forgotPassword: async (userId, newPassword) => {
+      throw new Error('Not implemented: users.forgotPassword');
+    },
+  };
+
+  /**
+   * Import API
+   */
+  import = {
+    /**
+     * 导入对话历史
+     * @param {object} data - 导入数据
+     * @param {string} data.agentName - Agent名称
+     * @param {Array} data.messages - 消息数组
+     * @returns {Promise<object>} 导入结果
+     */
+    conversations: async (data) => {
+      throw new Error('Not implemented: import.conversations');
     },
   };
 }

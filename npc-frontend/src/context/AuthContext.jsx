@@ -8,8 +8,12 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 初始化时从 localStorage 恢复登录状态
+  // 初始化时从 localStorage 恢复登录状态和 Token
   useEffect(() => {
+    // 恢复 Token
+    api.loadToken();
+    
+    // 恢复用户信息
     const storedUser = localStorage.getItem('npc_user');
     if (storedUser) {
       try {
@@ -26,10 +30,18 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.users.login(userId, password);
       if (response.success) {
-        const userData = response.data;
-        setUser(userData);
-        localStorage.setItem('npc_user', JSON.stringify(userData));
-        message.success(`欢迎回来，${userData.username}`);
+        const { user, accessToken } = response.data;
+        
+        // 保存 Token
+        if (accessToken) {
+          api.setToken(accessToken);
+        }
+        
+        // 保存用户信息
+        setUser(user);
+        localStorage.setItem('npc_user', JSON.stringify(user));
+        
+        message.success(`欢迎回来，${user.username}`);
         return { success: true };
       } else {
         return { success: false, error: response.error };
@@ -59,8 +71,14 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    // 清除 Token
+    api.setToken(null);
+    
+    // 清除用户信息
     setUser(null);
     localStorage.removeItem('npc_user');
+    localStorage.removeItem('npc_access_token');
+    
     message.info('已退出登录');
   };
 
