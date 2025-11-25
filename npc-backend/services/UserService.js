@@ -182,10 +182,69 @@ async function autoLogin(userId) {
   return userInfo;
 }
 
+/**
+ * 根据 ID 获取用户信息（不含密码）
+ * @param {string} userId - 用户 ID
+ * @returns {Promise<Object>} 用户信息
+ */
+async function getUserById(userId) {
+  if (!userId) {
+    const error = new Error('用户 ID 不能为空');
+    error.code = 'VALIDATION_ERROR';
+    throw error;
+  }
+
+  const user = await userRepository.findById(userId);
+  
+  if (!user) {
+    const error = new Error('用户不存在');
+    error.code = 'USER_NOT_FOUND';
+    throw error;
+  }
+
+  // 返回用户信息（不含密码）
+  const { password: _, ...userInfo } = user;
+  return userInfo;
+}
+
+/**
+ * 标记用户已读版本
+ * @param {string} userId - 用户 ID
+ * @param {string} version - 版本号
+ * @returns {Promise<Object>} 更新后的用户信息
+ */
+async function markVersionRead(userId, version) {
+  if (!userId) {
+    const error = new Error('用户 ID 不能为空');
+    error.code = 'VALIDATION_ERROR';
+    throw error;
+  }
+
+  if (!version) {
+    const error = new Error('版本号不能为空');
+    error.code = 'VALIDATION_ERROR';
+    throw error;
+  }
+
+  const updatedUser = await userRepository.updateLastReadVersion(userId, version);
+  
+  if (!updatedUser) {
+    const error = new Error('用户不存在');
+    error.code = 'USER_NOT_FOUND';
+    throw error;
+  }
+
+  // 返回用户信息（不含密码）
+  const { password: _, ...userInfo } = updatedUser;
+  return userInfo;
+}
+
 module.exports = {
   login,
   register,
   forgotPassword,
-  autoLogin
+  autoLogin,
+  getUserById,
+  markVersionRead,
 };
 

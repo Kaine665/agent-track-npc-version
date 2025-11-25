@@ -140,7 +140,37 @@ async function findByUsername(username) {
     password: user.password,
     createdAt: user.created_at,
     updatedAt: user.updated_at,
+    lastReadVersion: user.last_read_version || null,
   };
+}
+
+/**
+ * 更新用户已读版本
+ *
+ * 【功能说明】
+ * 更新用户已读的最新版本号
+ *
+ * 【参数说明】
+ * @param {string} userId - 用户 ID
+ * @param {string} version - 版本号（如：1.5.0）
+ * @returns {Promise<Object|null>} 更新后的用户对象，如果用户不存在则返回 null
+ */
+async function updateLastReadVersion(userId, version) {
+  const now = Date.now();
+  
+  const sql = `
+    UPDATE users 
+    SET last_read_version = ?, updated_at = ?
+    WHERE id = ?
+  `;
+  
+  const result = await query(sql, [version, now, userId]);
+  
+  if (result.affectedRows === 0) {
+    return null; // 用户不存在
+  }
+  
+  return await findById(userId);
 }
 
 /**
@@ -188,4 +218,5 @@ module.exports = {
   findById,
   findByUsername,
   updatePassword,
+  updateLastReadVersion,
 };

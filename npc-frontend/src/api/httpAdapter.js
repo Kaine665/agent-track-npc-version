@@ -656,6 +656,30 @@ class HttpAdapter extends ApiAdapter {
       );
       return response;
     },
+
+    /**
+     * 获取版本信息和更新提示
+     * @returns {Promise<object>} 版本信息
+     */
+    getVersionInfo: async () => {
+      const response = await this.request("GET", "/api/v1/users/version-info");
+      return response;
+    },
+
+    /**
+     * 标记用户已读版本
+     * @param {string} version - 版本号
+     * @returns {Promise<object>} 标记结果
+     */
+    markVersionRead: async (version) => {
+      const response = await this.request(
+        "POST",
+        "/api/v1/users/mark-version-read",
+        null,
+        { version }
+      );
+      return response;
+    },
   };
 
   /**
