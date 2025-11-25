@@ -4,10 +4,15 @@
 # 生产环境滚动更新脚本
 # ============================================
 # 说明：无停机更新生产环境版本
-# 使用方法：chmod +x update-production.sh && ./update-production.sh
+# 使用方法：chmod +x update-production.sh && ./update-production.sh [分支名]
+# 示例：./update-production.sh main
+#       ./update-production.sh develop
 # 最后更新：2025-11-25
 
 set -e  # 遇到错误立即退出
+
+# 从命令行参数获取分支名（如果提供）
+TARGET_BRANCH="$1"
 
 echo "🚀 开始滚动更新生产环境..."
 
@@ -55,10 +60,83 @@ fi
 
 # 拉取最新代码（如果使用 Git）
 if [ -d .git ]; then
-    read -p "是否拉取最新代码？(y/n): " pull_code
-    if [ "$pull_code" = "y" ] || [ "$pull_code" = "Y" ]; then
-        echo -e "${YELLOW}📥 拉取最新代码...${NC}"
-        git pull || echo "⚠️  Git pull 失败，继续使用当前代码"
+    # 显示当前分支
+    CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || git rev-parse --abbrev-ref HEAD 2>/dev/null)
+    echo -e "${YELLOW}当前分支: ${CURRENT_BRANCH}${NC}"
+    
+    # 如果命令行提供了分支名，直接使用；否则询问用户
+    if [ -n "$TARGET_BRANCH" ]; then
+        echo -e "${YELLOW}目标分支（命令行指定）: ${TARGET_BRANCH}${NC}"
+        SWITCH_BRANCH="y"
+        TARGET_BRANCH_INPUT="$TARGET_BRANCH"
+        PULL_CODE="y"
+    else
+        read -p "是否拉取最新代码？(y/n): " pull_code
+        PULL_CODE="$pull_code"
+        if [ "$pull_code" != "y" ] && [ "$pull_code" != "Y" ]; then
+            echo -e "${YELLOW}跳过代码拉取${NC}"
+        else
+            # 询问是否切换分支
+            read -p "是否切换到其他分支？(y/n，默认n): " switch_branch
+            SWITCH_BRANCH="$switch_branch"
+            if [ "$switch_branch" = "y" ] || [ "$switch_branch" = "Y" ]; then
+                echo -e "${YELLOW}正在获取远程分支列表...${NC}"
+                git fetch origin --prune || echo "⚠️  Git fetch 失败"
+                echo ""
+                echo "可用远程分支："
+                git branch -r | sed 's/origin\///' | grep -v HEAD | sed 's/^/  /' | sort
+                echo ""
+                read -p "请输入要切换的分支名: " TARGET_BRANCH_INPUT
+            fi
+        fi
+    fi
+    
+    # 如果需要切换分支
+    if [ "$SWITCH_BRANCH" = "y" ] || [ "$SWITCH_BRANCH" = "Y" ] || [ -n "$TARGET_BRANCH" ]; then
+        if [ -n "$TARGET_BRANCH_INPUT" ]; then
+            echo -e "${YELLOW}🔄 切换到分支: $TARGET_BRANCH_INPUT...${NC}"
+            
+            # 先获取所有远程分支
+            git fetch origin --prune || echo "⚠️  Git fetch 失败"
+            
+            # 检查远程分支是否存在
+            if git ls-remote --heads origin "$TARGET_BRANCH_INPUT" | grep -q "$TARGET_BRANCH_INPUT"; then
+                # 如果当前有未提交的更改，先stash
+                if ! git diff-index --quiet HEAD --; then
+                    echo -e "${YELLOW}检测到未提交的更改，正在暂存...${NC}"
+                    git stash save "Auto-stash before branch switch $(date +%Y%m%d-%H%M%S)"
+                fi
+                
+                # 切换到分支
+                if git checkout "$TARGET_BRANCH_INPUT" 2>/dev/null; then
+                    echo -e "${GREEN}✅ 已切换到本地分支: $TARGET_BRANCH_INPUT${NC}"
+                elif git checkout -b "$TARGET_BRANCH_INPUT" "origin/$TARGET_BRANCH_INPUT" 2>/dev/null; then
+                    echo -e "${GREEN}✅ 已创建并切换到分支: $TARGET_BRANCH_INPUT${NC}"
+                else
+                    echo -e "${RED}❌ 切换分支失败${NC}"
+                    echo "提示：请确保分支名正确，或手动执行："
+                    echo "  git fetch origin"
+                    echo "  git checkout $TARGET_BRANCH_INPUT"
+                    exit 1
+                fi
+            else
+                echo -e "${RED}❌ 远程分支 '$TARGET_BRANCH_INPUT' 不存在${NC}"
+                echo "可用分支："
+                git branch -r | sed 's/origin\///' | grep -v HEAD | sed 's/^/  /'
+                exit 1
+            fi
+        fi
+    fi
+    
+    # 拉取最新代码
+    if [ "$PULL_CODE" = "y" ] || [ "$PULL_CODE" = "Y" ] || [ -n "$TARGET_BRANCH" ]; then
+        CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || git rev-parse --abbrev-ref HEAD 2>/dev/null)
+        echo -e "${YELLOW}📥 拉取分支 '$CURRENT_BRANCH' 的最新代码...${NC}"
+        git pull origin "$CURRENT_BRANCH" || {
+            echo -e "${YELLOW}⚠️  使用默认方式拉取...${NC}"
+            git pull || echo -e "${RED}⚠️  Git pull 失败，继续使用当前代码${NC}"
+        }
+        echo -e "${GREEN}✅ 代码拉取完成${NC}"
     fi
 fi
 
