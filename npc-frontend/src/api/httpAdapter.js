@@ -640,6 +640,22 @@ class HttpAdapter extends ApiAdapter {
       );
       return response;
     },
+
+    /**
+     * 自动登录（用于老用户迁移）
+     * 对于在 2025-11-25 之前注册的用户，允许自动登录
+     * @param {string} userId - 用户 ID
+     * @returns {Promise<object>} 用户信息和 Token
+     */
+    autoLogin: async (userId) => {
+      const response = await this.request(
+        "POST",
+        "/api/v1/users/auto-login",
+        null,
+        { userId }
+      );
+      return response;
+    },
   };
 
   /**

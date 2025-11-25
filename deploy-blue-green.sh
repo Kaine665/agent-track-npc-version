@@ -159,9 +159,15 @@ fi
 echo ""
 echo -e "${GREEN}✅ 新版本已部署完成！${NC}"
 echo ""
+
+# 获取服务器 IP 地址
+SERVER_IP=$(curl -s ifconfig.me 2>/dev/null || curl -s ipinfo.io/ip 2>/dev/null || hostname -I | awk '{print $1}' || echo "你的服务器IP")
+
 echo -e "${YELLOW}📋 测试地址：${NC}"
-echo "   - 新后端健康检查: http://localhost:${NEW_BACKEND_PORT}/api/v1/health"
-echo "   - 新前端: http://localhost:${NEW_FRONTEND_PORT}"
+echo "   - 新后端健康检查: http://${SERVER_IP}:${NEW_BACKEND_PORT}/api/v1/health"
+echo "   - 新前端: http://${SERVER_IP}:${NEW_FRONTEND_PORT}"
+echo ""
+echo -e "${YELLOW}💡 提示：如果无法访问，请检查服务器防火墙是否开放端口 ${NEW_BACKEND_PORT} 和 ${NEW_FRONTEND_PORT}${NC}"
 echo ""
 echo -e "${YELLOW}📊 当前运行的服务：${NC}"
 docker ps --filter "name=npc-" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"

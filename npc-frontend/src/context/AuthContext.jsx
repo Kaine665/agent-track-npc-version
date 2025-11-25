@@ -10,20 +10,64 @@ export const AuthProvider = ({ children }) => {
 
   // 初始化时从 localStorage 恢复登录状态和 Token
   useEffect(() => {
-    // 恢复 Token
-    api.loadToken();
-    
-    // 恢复用户信息
-    const storedUser = localStorage.getItem('npc_user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        console.error('Failed to parse user from local storage', e);
-        localStorage.removeItem('npc_user');
+    const initializeAuth = async () => {
+      // 恢复 Token
+      const token = api.loadToken();
+      
+      // 恢复用户信息
+      const storedUser = localStorage.getItem('npc_user');
+      let userData = null;
+      
+      if (storedUser) {
+        try {
+          userData = JSON.parse(storedUser);
+        } catch (e) {
+          console.error('Failed to parse user from local storage', e);
+          localStorage.removeItem('npc_user');
+        }
       }
-    }
-    setLoading(false);
+
+      // 如果有用户信息但没有 Token，尝试自动登录（老用户迁移）
+      if (userData && userData.id && !token) {
+        try {
+          console.log('尝试自动登录（老用户迁移）:', userData.id);
+          const response = await api.users.autoLogin(userData.id);
+          
+          if (response.success) {
+            const { user: updatedUser, accessToken } = response.data;
+            
+            // 保存 Token
+            if (accessToken) {
+              api.setToken(accessToken);
+            }
+            
+            // 更新用户信息
+            setUser(updatedUser);
+            localStorage.setItem('npc_user', JSON.stringify(updatedUser));
+            
+            console.log('自动登录成功:', updatedUser.username);
+          } else {
+            // 自动登录失败（可能是新用户，需要密码登录）
+            console.log('自动登录失败:', response.error?.message);
+            // 清除用户信息，让用户重新登录
+            setUser(null);
+            localStorage.removeItem('npc_user');
+          }
+        } catch (error) {
+          console.error('自动登录发生错误:', error);
+          // 清除用户信息，让用户重新登录
+          setUser(null);
+          localStorage.removeItem('npc_user');
+        }
+      } else if (userData) {
+        // 有用户信息和 Token，直接恢复
+        setUser(userData);
+      }
+      
+      setLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
   const login = async (userId, password) => {

@@ -123,5 +123,50 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
+/**
+ * 自动登录（用于老用户迁移）
+ * 对于在 2025-11-25 之前注册的用户，允许自动登录
+ */
+router.post('/auto-login', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    
+    if (!userId) {
+      return sendErrorResponse(res, 400, 'VALIDATION_ERROR', 'User ID is required');
+    }
+
+    // 验证用户并检查注册日期
+    const user = await userService.autoLogin(userId);
+
+    // 生成 Access Token
+    const accessToken = generateAccessToken({
+      userId: user.id,
+      username: user.username,
+    });
+
+    // 可选：生成 Refresh Token
+    const refreshToken = generateRefreshToken({
+      userId: user.id,
+    });
+
+    // 返回 Token 和用户信息
+    sendSuccessResponse(res, 200, {
+      user: {
+        id: user.id,
+        username: user.username,
+      },
+      accessToken,
+      refreshToken,
+      expiresIn: '7d',
+    });
+  } catch (error) {
+    const code = error.code || 'SYSTEM_ERROR';
+    const status = code === 'USER_NOT_FOUND' ? 404 : 
+                   (code === 'AUTO_LOGIN_NOT_ALLOWED' ? 403 : 
+                   (code === 'VALIDATION_ERROR' ? 400 : 500));
+    sendErrorResponse(res, status, code, error.message);
+  }
+});
+
 module.exports = router;
 

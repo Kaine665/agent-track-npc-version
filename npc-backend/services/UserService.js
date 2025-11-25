@@ -132,9 +132,60 @@ async function forgotPassword(userId, newPassword) {
   return userInfo;
 }
 
+/**
+ * 自动登录（用于老用户迁移）
+ * 对于在 2025-11-25 之前注册的用户，允许自动登录
+ * @param {string} userId - 用户 ID
+ * @returns {Promise<Object>} 用户信息
+ */
+async function autoLogin(userId) {
+  // 验证必填参数
+  if (!userId) {
+    const error = new Error('用户 ID 不能为空');
+    error.code = 'VALIDATION_ERROR';
+    throw error;
+  }
+
+  // 查找用户
+  const user = await userRepository.findById(userId);
+  
+  if (!user) {
+    const error = new Error('用户不存在');
+    error.code = 'USER_NOT_FOUND';
+    throw error;
+  }
+
+  // 检查注册日期：2025-11-25 00:00:00 的时间戳（毫秒）
+  // 注意：使用 UTC 时间，确保时区一致
+  const migrationDate = new Date('2025-11-25T00:00:00.000Z').getTime();
+  
+  // 如果用户注册日期在迁移日期之后（包括等于），不允许自动登录
+  // 只有注册日期在 2025-11-25 00:00:00 之前的用户才能自动登录
+  if (user.createdAt >= migrationDate) {
+    const error = new Error('该用户需要密码登录');
+    error.code = 'AUTO_LOGIN_NOT_ALLOWED';
+    throw error;
+  }
+
+  // 如果用户密码为空或等于默认密码，自动设置为默认密码（确保后续可以正常登录）
+  let finalUser = user;
+  if (!user.password || user.password === '') {
+    // 为老用户设置默认密码（如果还没有）
+    const updatedUser = await userRepository.updatePassword(userId, '123456');
+    if (updatedUser) {
+      finalUser = updatedUser; // 使用更新后的用户信息
+    }
+  }
+
+  // 返回用户信息（不含密码）
+  const { password: _, ...userInfo } = finalUser;
+  return userInfo;
+}
+
 module.exports = {
   login,
   register,
-  forgotPassword
+  forgotPassword,
+  autoLogin
 };
 
