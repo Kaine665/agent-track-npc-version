@@ -50,6 +50,11 @@ services:
       # 服务器配置
       NODE_ENV: production
       PORT: 8000
+      # CORS 配置
+      SERVER_IP: ${SERVER_IP:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      FRONTEND_DOMAIN: ${FRONTEND_DOMAIN:-}
+      DEBUG_CORS: ${DEBUG_CORS:-false}
       # 数据库配置（连接到 MySQL 服务）
       DB_HOST: mysql
       DB_PORT: 3306
