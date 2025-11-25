@@ -70,10 +70,10 @@ const Register = () => {
 
           <Form.Item
             name="password"
-            label="密码"
-            rules={[{ required: true, message: '请输入密码' }]}
+            label="密码（可选，不填则默认为123456）"
+            rules={[]}
           >
-            <Input.Password prefix={<LockOutlined />} placeholder="设置密码" />
+            <Input.Password prefix={<LockOutlined />} placeholder="设置密码（不填则默认为123456）" />
           </Form.Item>
 
           <Form.Item>

@@ -19,9 +19,11 @@ database:
 # LLM 提供商配置
 llm:
   # OpenRouter 配置（推荐，统一使用 OpenRouter）
+  # 支持多个 API Key，用逗号分隔，系统会自动故障转移
+  # 当第一个 API Key 失败（401/403/429/超时）时，会自动尝试下一个
   openrouter:
     enabled: true
-    api_key: "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"
+    api_key: "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,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"
   
   # OpenAI 配置（可选）
   openai:

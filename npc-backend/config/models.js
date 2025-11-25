@@ -293,6 +293,31 @@ function getAllModels() {
 }
 
 /**
+ * 获取默认模型
+ *
+ * 【功能说明】
+ * 返回默认的模型配置（用于导入等功能）
+ *
+ * @returns {Object} 默认模型配置 { model: string, provider: string }
+ */
+function getDefaultModel() {
+  // 返回第一个预设模型，如果没有则返回OpenRouter的第一个模型
+  const models = getSupportedModels();
+  if (models.length > 0) {
+    return {
+      model: models[0],
+      provider: getModelProvider(models[0]),
+    };
+  }
+  
+  // 如果没有预设模型，返回OpenRouter的默认模型
+  return {
+    model: 'openai/gpt-4.1',
+    provider: 'openrouter',
+  };
+}
+
+/**
  * 获取配置信息（用于调试和前端展示）
  *
  * 【功能说明】
@@ -319,5 +344,6 @@ module.exports = {
   getAllModels,
   getEnabledProviders,
   isProviderEnabled,
+  getDefaultModel,
   getConfigInfo,
 };

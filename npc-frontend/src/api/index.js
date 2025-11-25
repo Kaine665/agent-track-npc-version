@@ -300,13 +300,31 @@ const api = new Proxy(
         // 返回一个函数，用于添加初始化完成监听器
         return addInitializationListener;
       }
-      // 如果访问的是适配器的方法（agents, messages, history, sessions, users）
+      // Token 管理方法
+      if (prop === "setToken") {
+        return (token) => {
+          if (apiInstance.setToken) {
+            apiInstance.setToken(token);
+          }
+        };
+      }
+      if (prop === "loadToken") {
+        return () => {
+          if (apiInstance.loadToken) {
+            return apiInstance.loadToken();
+          }
+          return null;
+        };
+      }
+      // 如果访问的是适配器的方法（agents, messages, history, sessions, users, import, feedbacks）
       if (
         prop === "agents" ||
         prop === "messages" ||
         prop === "history" ||
         prop === "sessions" ||
-        prop === "users"
+        prop === "users" ||
+        prop === "import" ||
+        prop === "feedbacks"
       ) {
         return apiInstance[prop];
       }

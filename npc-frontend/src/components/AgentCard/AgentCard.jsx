@@ -22,8 +22,8 @@
 
 import React from 'react';
 import PropTypes from 'prop-types';
-import { Avatar, Tag, Typography, Space } from 'antd';
-import { UserOutlined } from '@ant-design/icons';
+import { Avatar, Tag, Typography, Space, Dropdown, Button } from 'antd';
+import { UserOutlined, EditOutlined, DeleteOutlined, MoreOutlined } from '@ant-design/icons';
 import Card from '../Card/Card';
 import styles from './AgentCard.module.css';
 
@@ -114,7 +114,7 @@ const cleanMarkdownPreview = (markdown, maxLength = 50) => {
   return text;
 };
 
-const AgentCard = ({ agent, onClick }) => {
+const AgentCard = ({ agent, onClick, onEdit, onDelete }) => {
   const { name, type, avatarUrl, lastMessageAt, lastMessagePreview } = agent;
 
   // 类型标签颜色映射
@@ -131,11 +131,38 @@ const AgentCard = ({ agent, onClick }) => {
     default: '未知'
   };
 
+  // 操作菜单
+  const menuItems = [
+    {
+      key: 'edit',
+      label: '编辑',
+      icon: <EditOutlined />,
+      onClick: ({ domEvent }) => {
+        if (domEvent) {
+          domEvent.stopPropagation();
+        }
+        onEdit && onEdit(agent);
+      },
+    },
+    {
+      key: 'delete',
+      label: '删除',
+      icon: <DeleteOutlined />,
+      danger: true,
+      onClick: ({ domEvent }) => {
+        if (domEvent) {
+          domEvent.stopPropagation();
+        }
+        onDelete && onDelete(agent);
+      },
+    },
+  ];
+
   return (
     <Card 
       hoverable 
       onClick={() => onClick && onClick(agent.id)}
-      style={{ marginBottom: 12, cursor: 'pointer' }}
+      style={{ marginBottom: 12, cursor: 'pointer', position: 'relative' }}
       styles={{ 
         body: { 
           padding: 16 
@@ -179,6 +206,26 @@ const AgentCard = ({ agent, onClick }) => {
             </Text>
           </div>
         </div>
+
+        {/* 操作按钮区域 */}
+        <div 
+          style={{ marginLeft: 8, flexShrink: 0 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Dropdown 
+            menu={{ items: menuItems }} 
+            trigger={['click']}
+            placement="bottomRight"
+          >
+            <Button 
+              type="text" 
+              icon={<MoreOutlined />} 
+              size="small"
+              style={{ color: '#8c8c8c' }}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </Dropdown>
+        </div>
       </div>
     </Card>
   );
@@ -192,8 +239,11 @@ AgentCard.propTypes = {
     avatarUrl: PropTypes.string,
     lastMessageAt: PropTypes.number,
     lastMessagePreview: PropTypes.string,
+    createdBy: PropTypes.string,
   }).isRequired,
   onClick: PropTypes.func,
+  onEdit: PropTypes.func,
+  onDelete: PropTypes.func,
 };
 
 export default AgentCard;

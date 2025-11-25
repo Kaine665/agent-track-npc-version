@@ -33,6 +33,7 @@
 const express = require("express");
 const router = express.Router();
 const eventService = require("../services/EventService");
+const { authenticate } = require("../middleware/auth");
 
 /**
  * 统一响应格式
@@ -146,9 +147,10 @@ function sendErrorResponse(res, statusCode, code, message) {
  * - VALIDATION_ERROR → 400（参数验证失败）
  * - SYSTEM_ERROR → 500（系统错误）
  */
-router.get("/", async (req, res) => {
+router.get("/", authenticate, async (req, res) => {
   try {
-    const userId = req.query.userId;
+    // 从认证中间件获取 userId（优先），如果没有则从查询参数获取（兼容旧代码）
+    const userId = req.user?.userId || req.query.userId;
     const agentId = req.query.agentId;
 
     // 验证 userId 参数

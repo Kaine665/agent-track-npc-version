@@ -19,12 +19,43 @@
   .registerButton {
     display: none !important;
   }
+
+  /* 反馈按钮在移动端只显示图标 */
+  .feedbackButton {
+    padding: 4px 8px !important;
+  }
+
+  .feedbackButton span {
+    display: none !important;
+  }
+
+  /* 更新日志按钮在移动端只显示图标 */
+  .updateLogButton {
+    padding: 4px 8px !important;
+  }
+
+  .updateLogButton span {
+    display: none !important;
+  }
 }
 
 /* 创建按钮移动端优化 */
 @media (max-width: 480px) {
   .createButton {
     height: 44px !important;
+    font-size: 14px !important;
+  }
+}
+
+/* 搜索框样式 */
+.searchInput {
+  border-radius: 8px;
+}
+
+/* 搜索框移动端优化 */
+@media (max-width: 480px) {
+  .searchInput {
+    height: 38px !important;
     font-size: 14px !important;
   }
 }

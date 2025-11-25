@@ -36,3 +36,38 @@
   }
 }
 
+/* 复制按钮样式 */
+.copyButton {
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.copyButton:hover {
+  opacity: 1;
+}
+
+/* 收起/展开按钮样式 */
+.toggleButton {
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.toggleButton:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+/* 展开状态过渡动画 */
+.markdownContent {
+  transition: all 0.3s ease;
+}
+
+/* 收起状态样式 */
+.markdownContent.collapsed {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+

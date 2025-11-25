@@ -1,0 +1,1037 @@
+﻿
+> npc-backend@1.0.0 test
+> jest --coverage --verbose
+
+node.exe : PASS __tests__/repositories/EventRepository.test.js
+所在位置 行:1 字符: 1
++ & "D:\App\nodejs/node.exe" "D:\App\nodejs/node_modules/npm/bin/npm-cl ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (PASS __tests__/...ository.test.js:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  EventRepository
+    createEvent
+      鈭?搴旇鎴愬姛鍒涘缓浜嬩欢 (15 ms)
+      鈭?搴旇鐢熸垚鍞竴鐨勪簨浠?ID (2 ms)
+    getEventsBySession
+      鈭?搴旇杩斿洖浼氳瘽鐨勬墍鏈変簨浠?(1 ms)
+      鈭?搴旇鎸夋椂闂村崌搴忔帓搴?    getRecentEvents
+      鈭?搴旇杩斿洖鏈€杩?N 鏉′簨浠?(3 ms)
+      鈭?搴旇鎸夋椂闂村€掑簭鎺掑簭锛堟渶鏂扮殑鍦ㄥ墠锛?(1 ms)
+
+  console.log
+    鉁?Loaded configuration from config.yaml
+
+      at log (config/config-loader.js:162:13)
+
+  console.log
+    馃搵 Configuration loaded:
+
+      at Object.log [as init] (config/config-loader.js:205:13)
+
+  console.log
+       - Server Port: 8000
+
+      at Object.log [as init] (config/config-loader.js:206:13)
+
+  console.log
+       - Database: npc_db_test @ localhost:3306
+
+      at Object.log [as init] (config/config-loader.js:207:13)
+
+  console.log
+       - Database User: root
+
+      at Object.log [as init] (config/config-loader.js:208:13)
+
+  console.log
+       - Database Password: ***
+
+      at Object.log [as init] (config/config-loader.js:209:13)
+
+  console.log
+       - OpenRouter API Key: ***
+
+      at Object.log [as init] (config/config-loader.js:210:13)
+
+  console.log
+    鉁?Loaded configuration from config.yaml
+
+      at log (config/config-loader.js:162:13)
+
+  console.log
+    馃搵 Configuration loaded:
+
+      at Object.log [as init] (config/config-loader.js:205:13)
+
+  console.log
+       - Server Port: 8000
+
+      at Object.log [as init] (config/config-loader.js:206:13)
+
+  console.log
+       - Database: npc_db_test @ localhost:3306
+
+      at Object.log [as init] (config/config-loader.js:207:13)
+
+  console.log
+       - Database User: root
+
+      at Object.log [as init] (config/config-loader.js:208:13)
+
+  console.log
+       - Database Password: ***
+
+      at Object.log [as init] (config/config-loader.js:209:13)
+
+  console.log
+       - OpenRouter API Key: ***
+
+      at Object.log [as init] (config/config-loader.js:210:13)
+
+  console.log
+    鉁?Loaded configuration from config.yaml
+
+      at log (config/config-loader.js:162:13)
+
+  console.log
+    馃搳 Database Config: {
+      host: 'localhost',
+      port: 3306,
+      user: 'root',
+      database: 'npc_db_test',
+      password: '***'
+    }
+
+      at Object.log (config/database.js:78:9)
+
+  console.log
+    馃搵 Configuration loaded:
+
+      at Object.log [as init] (config/config-loader.js:205:13)
+
+  console.log
+       - Server Port: 8000
+
+      at Object.log [as init] (config/config-loader.js:206:13)
+
+  console.log
+       - Database: npc_db_test @ localhost:3306
+
+      at Object.log [as init] (config/config-loader.js:207:13)
+
+  console.log
+       - Database User: root
+
+      at Object.log [as init] (config/config-loader.js:208:13)
+
+  console.log
+       - Database Password: ***
+
+      at Object.log [as init] (config/config-loader.js:209:13)
+
+  console.log
+       - OpenRouter API Key: ***
+
+      at Object.log [as init] (config/config-loader.js:210:13)
+
+  console.log
+    馃搳 Database Config: {
+      host: 'localhost',
+      port: 3306,
+      user: 'root',
+      database: 'npc_db_test',
+      password: '***'
+    }
+
+      at Object.log (config/database.js:78:9)
+
+  console.log
+    馃搳 Database Config: {
+      host: 'localhost',
+      port: 3306,
+      user: 'root',
+      database: 'npc_db_test',
+      password: '***'
+    }
+
+      at Object.log (config/database.js:78:9)
+
+  console.log
+    馃搳 Database Config: {
+      host: 'localhost',
+      port: 3306,
+      user: 'root',
+      database: 'npc_db_test',
+      password: '***'
+    }
+
+      at Object.log (config/database.js:78:9)
+
+  console.log
+    馃搳 Database Config: {
+      host: 'localhost',
+      port: 3306,
+      user: 'root',
+      database: 'npc_db_test',
+      password: '***'
+    }
+
+      at Object.log (config/database.js:78:9)
+
+  console.log
+    [MessageService] Starting LLM processing for session: session_123 {
+      agentId: 'test_agent_123',
+      model: 'openai/gpt-3.5-turbo',
+      provider: 'openrouter',
+      historyEventsCount: 1
+    }
+
+      at log (services/MessageService.js:219:11)
+
+  console.log
+    [MessageService] Calling LLM API for session: session_123
+
+      at log (services/MessageService.js:228:13)
+
+  console.log
+    [MessageService] LLM API returned reply for session: session_123 { replyLength: 8, replyPreview: 'AI Reply' }
+
+      at log (services/MessageService.js:237:13)
+
+  console.log
+    [MessageService] 鉁?Agent reply created successfully for session: session_123
+
+      at log (services/MessageService.js:254:13)
+
+  console.log
+    [MessageService] Starting LLM processing for session: session_123 {
+      agentId: 'test_agent_123',
+      model: 'openai/gpt-3.5-turbo',
+      provider: 'openrouter',
+      historyEventsCount: 1
+    }
+
+      at log (services/MessageService.js:219:11)
+
+  console.log
+    [MessageService] Calling LLM API for session: session_123
+
+      at log (services/MessageService.js:228:13)
+
+  console.log
+    馃搳 Database Config: {
+      host: 'localhost',
+      port: 3306,
+      user: 'root',
+      database: 'npc_db_test',
+      password: '***'
+    }
+
+      at Object.log (config/database.js:78:9)
+
+  console.error
+    [MessageService] 鉂?Failed to process LLM reply for session session_123: {
+      errorCode: 'LLM_API_ERROR',
+      errorMessage: 'LLM API 璋冪敤澶辫触',
+      errorStatus: undefined,
+      errorProvider: undefined,
+      agentId: 'test_agent_123',
+      model: 'openai/gpt-3.5-turbo',
+      provider: 'openrouter',
+      stack: 'Error: LLM API 璋冪敤澶辫触\n' +
+        '    at Object.<anonymous> (C:\\Users\\17130\\Desktop\\Programming Projects\\personal-projects\\agent-track\\v1.5\\npc-backend\\__tests__\\services\\MessageService.test.js:125:21)\n' +
+        '    at Promise.then.completed (C:\\Users\\17130\\Desktop\\Programming Projects\\personal-projects\\agent-track\\v1.5\\npc-backend\\node_modules\\jest-circus\\build\\utils.js:298:28)\n' +
+        '    at new Promise (<anonymous>)\n' +
+        '    at callAsyncCircusFn (C:\\Users\\17130\\Desktop\\Programming Projects\\personal-projects\\agent-track\\v1.5\\npc-backend\\node_modules\\jest-circus\\build\\utils.js:231:10)\n' +
+        '    at _callCircusTest (C:\\Users\\17130\\Desktop\\Programming Projects\\personal-projects\\agent-track\\v1.5\\npc-backend\\node_modules\\jest-circus\\build\\run.js:316:40)\n' +
+        '    at _runTest (C:\\Users\\17130\\Desktop\\Programming Projects\\personal-projects\\agent-track\\v1.5\\npc-backend\\node_modules\\jest-circus\\build\\run.js:252:3)\n' +
+        '    at _runTestsForDescribeBlock (C:\\Users\\17130\\Desktop\\Programming Projects\\personal-projects\\agent-track\\v1.5\\npc-backend\\node_modules\\jest-circus\\build\\run.js:126:9)\n' +
+        '    at _runTestsForDescribeBlock (C:\\Users\\17130\\Desktop\\Programming Projects\\personal-projects\\agent-track\\v1.5\\npc-backend\\node_modules\\jest-circus\\build\\run.js:121:9)\n' +
+        '    at _runTestsForDescribeBlock (C:\\Users\\17130\\Desktop\\Programming Projects\\personal-projects\\agent-track\\v1.5\\npc-backend\\node_modules\\jest-circus\\build\\run.js:121:9)\n' +
+        '    at run (C:\\Users\\17130\\Desktop\\Programming Projects\\personal-projects\\agent-track\\v1.5\\npc-backend\\node_modules\\jest-circus\\build\\run.js:71:3)\n' +
+        '    at runAndTransformResultsToJestFormat (C:\\Users\\17130\\Desktop\\Programming Projects\\personal-projects\\agent-track\\v1.5\\npc-backend\\node_modules\\jest-circus\\build\\legacy-code-todo-rewrite\\jestAdapterInit.js:122:21)\n' +
+        '    at jestAdapter (C:\\Users\\17130\\Desktop\\Programming Projects\\personal-projects\\agent-track\\v1.5\\npc-backend\\node_modules\\jest-circus\\build\\legacy-code-todo-rewrite\\jestAdapter.js:79:19)\n' +
+        '    at runTestInternal (C:\\Users\\17130\\Desktop\\Programming Projects\\personal-projects\\agent-track\\v1.5\\npc-backend\\node_modules\\jest-runner\\build\\runTest.js:367:16)\n' +
+        '    at runTest (C:\\Users\\17130\\Desktop\\Programming Projects\\personal-projects\\agent-track\\v1.5\\npc-backend\\node_modules\\jest-runner\\build\\runTest.js:444:34)\n' +
+        '    at Object.worker (C:\\Users\\17130\\Desktop\\Programming Projects\\personal-projects\\agent-track\\v1.5\\npc-backend\\node_modules\\jest-runner\\build\\testWorker.js:106:12)'
+    }
+
+      255 |   } catch (error) {
+      256 |     // LLM 璋冪敤澶辫触锛岃褰曡缁嗛敊璇俊鎭?    > 257 |     console.error(`[MessageService] 鉂?Failed to process LLM reply for session ${sessionId}:`, {
+          |             ^
+      258 |       errorCode: error.code || "UNKNOWN_ERROR",
+      259 |       errorMessage: error.message || String(error),
+      260 |       errorStatus: error.status,
+
+      at error (services/MessageService.js:257:13)
+
+  console.log
+    馃搳 Database Config: {
+      host: 'localhost',
+      port: 3306,
+      user: 'root',
+      database: 'npc_db_test',
+      password: '***'
+    }
+
+      at Object.log (config/database.js:78:9)
+
+  console.log
+    馃搳 Database Config: {
+      host: 'localhost',
+      port: 3306,
+      user: 'root',
+      database: 'npc_db_test',
+      password: '***'
+    }
+PASS __tests__/services/MessageService.test.js
+
+      at Object.log (config/database.js:78:9)
+
+  console.log
+    馃搳 Database Config: {
+      host: 'localhost',
+      port: 3306,
+      user: 'root',
+      database: 'npc_db_test',
+      password: '***'
+    }
+
+      at Object.log (config/database.js:78:9)
+
+  console.log
+    鉁?Loaded configuration from config.yaml
+
+      at log (config/config-loader.js:162:13)
+
+  console.log
+    馃搵 Configuration loaded:
+
+      at Object.log [as init] (config/config-loader.js:205:13)
+
+  console.log
+       - Server Port: 8000
+
+      at Object.log [as init] (config/config-loader.js:206:13)
+
+  console.log
+       - Database: npc_db_test @ localhost:3306
+
+      at Object.log [as init] (config/config-loader.js:207:13)
+
+  console.log
+       - Database User: root
+
+      at Object.log [as init] (config/config-loader.js:208:13)
+
+  console.log
+       - Database Password: ***
+
+      at Object.log [as init] (config/config-loader.js:209:13)
+
+  console.log
+       - OpenRouter API Key: ***
+
+      at Object.log [as init] (config/config-loader.js:210:13)
+
+  console.log
+    馃搳 Database Config: {
+      host: 'localhost',
+      port: 3306,
+      user: 'root',
+      database: 'npc_db_test',
+      password: '***'
+    }
+
+      at Object.log (config/database.js:78:9)
+
+  console.log
+    鉁?Loaded configuration from config.yaml
+
+      at log (config/config-loader.js:162:13)
+
+  console.log
+    馃搵 Configuration loaded:
+
+      at Object.log [as init] (config/config-loader.js:205:13)
+
+  console.log
+       - Server Port: 8000
+
+      at Object.log [as init] (config/config-loader.js:206:13)
+
+  console.log
+       - Database: npc_db_test @ localhost:3306
+
+      at Object.log [as init] (config/config-loader.js:207:13)
+
+  console.log
+       - Database User: root
+
+      at Object.log [as init] (config/config-loader.js:208:13)
+
+  console.log
+       - Database Password: ***
+
+      at Object.log [as init] (config/config-loader.js:209:13)
+
+  console.log
+       - OpenRouter API Key: ***
+
+      at Object.log [as init] (config/config-loader.js:210:13)
+
+  console.log
+    鉁?Loaded configuration from config.yaml
+
+      at log (config/config-loader.js:162:13)
+
+  console.log
+    馃搵 Configuration loaded:
+
+      at Object.log [as init] (config/config-loader.js:205:13)
+
+  console.log
+       - Server Port: 8000
+
+      at Object.log [as init] (config/config-loader.js:206:13)
+
+  console.log
+       - Database: npc_db_test @ localhost:3306
+
+      at Object.log [as init] (config/config-loader.js:207:13)
+
+  console.log
+       - Database User: root
+
+      at Object.log [as init] (config/config-loader.js:208:13)
+
+  console.log
+       - Database Password: ***
+
+      at Object.log [as init] (config/config-loader.js:209:13)
+
+  console.log
+       - OpenRouter API Key: ***
+
+      at Object.log [as init] (config/config-loader.js:210:13)
+
+  console.log
+    [MessageService] Starting LLM processing for session: session_123 {
+      agentId: 'test_agent_123',
+      model: 'openai/gpt-3.5-turbo',
+      provider: 'openrouter',
+      historyEventsCount: 1
+    }
+
+      at log (services/MessageService.js:219:11)
+
+  console.log
+    [MessageService] Calling LLM API for session: session_123
+
+      at log (services/MessageService.js:228:13)
+
+  console.log
+    [MessageService] LLM API returned reply for session: session_123 { replyLength: 8, replyPreview: 'AI Reply' }
+
+      at log (services/MessageService.js:237:13)
+
+  console.log
+    [MessageService] 鉁?Agent reply created successfully for session: session_123
+
+      at log (services/MessageService.js:254:13)
+
+  MessageService
+    sendMessage
+      鈭?搴旇鎴愬姛鍙戦€佹秷鎭苟杩斿洖 AI 鍥炲 (18 ms)
+      鈭?搴旇鎷掔粷绌?userId (2 ms)
+      鈭?搴旇鎷掔粷绌?agentId (1 ms)
+      鈭?搴旇鎷掔粷绌烘秷鎭唴瀹?(1 ms)
+      鈭?搴旇澶勭悊 Agent 涓嶅瓨鍦?(1 ms)
+      鈭?搴旇澶勭悊 LLM API 閿欒 (42 ms)
+      鈭?搴旇浣跨敤鑷畾涔?contextLimit (21 ms)
+
+PASS __tests__/services/EventService.test.js
+  EventService
+    createEvent
+      鈭?搴旇鎴愬姛鍒涘缓浜嬩欢 (18 ms)
+      鈭?搴旇鎷掔粷绌?sessionId (7 ms)
+      鈭?搴旇鎷掔粷绌?content (1 ms)
+      鈭?搴旇鎷掔粷 content 瓒呰繃50000瀛楃
+      鈭?搴旇鎷掔粷鏃犳晥鐨?fromType
+      鈭?搴旇鎷掔粷鏃犳晥鐨?toType (1 ms)
+      鈭?搴旇鎷掔粷涓嶅瓨鍦ㄧ殑 Agent
+    getRecentEvents
+      鈭?搴旇杩斿洖鏈€杩戠殑浜嬩欢 (10 ms)
+      鈭?搴旇浣跨敤榛樿 limit (15 ms)
+    getEventsBySession
+      鈭?搴旇杩斿洖浼氳瘽鐨勬墍鏈変簨浠?(1 ms)
+
+PASS __tests__/services/AgentService.test.js
+  AgentService
+    createAgent
+      鈭?搴旇鎴愬姛鍒涘缓 Agent (2 ms)
+      鈭?搴旇鎷掔粷绌?userId (4 ms)
+      鈭?搴旇鎷掔粷绌哄悕绉?(1 ms)
+      鈭?搴旇鎷掔粷鍚嶇О瓒呰繃50瀛楃
+      鈭?搴旇鎷掔粷鏃犳晥鐨勭被鍨?(2 ms)
+      鈭?搴旇鎷掔粷鏃犳晥鐨勬ā鍨?(1 ms)
+      鈭?搴旇鎷掔粷 systemPrompt 瓒呰繃5000瀛楃 (1 ms)
+      鈭?搴旇鎷掔粷閲嶅鐨勫悕绉?(1 ms)
+      鈭?搴旇鏀寔 createdBy 瀛楁锛堝悜鍚庡吋瀹癸級 (2 ms)
+    getAgentList
+      鈭?搴旇杩斿洖鐢ㄦ埛鐨?Agent 鍒楄〃 (1 ms)
+      鈭?搴旇杩斿洖绌烘暟缁勫綋 userId 涓虹┖ (1 ms)
+      鈭?搴旇鎸?lastMessageAt 鎺掑簭
+    getAgentById
+      鈭?搴旇杩斿洖 Agent 褰?ID 瀛樺湪 (1 ms)
+      鈭?搴旇杩斿洖 null 褰?ID 涓嶅瓨鍦?      鈭?搴旇杩斿洖 null 褰?ID 涓虹┖ (1 ms)
+    updateAgent
+      鈭?搴旇鎴愬姛鏇存柊 Agent (2 ms)
+      鈭?搴旇鎷掔粷鏇存柊涓嶅瓨鍦ㄧ殑 Agent
+      鈭?搴旇鎷掔粷鏇存柊鍏朵粬鐢ㄦ埛鐨?Agent
+      鈭?搴旇鎷掔粷鏇存柊涓洪噸澶嶇殑鍚嶇О
+      鈭?搴旇鍏佽鏇存柊涓哄綋鍓?Agent 鐨勫悕绉?(1 ms)
+    deleteAgent
+      鈭?搴旇鎴愬姛杞垹闄?Agent (1 ms)
+      鈭?搴旇鎴愬姛纭垹闄?Agent (1 ms)
+      鈭?搴旇鎷掔粷鍒犻櫎涓嶅瓨鍦ㄧ殑 Agent
+      鈭?搴旇鎷掔粷鍒犻櫎鍏朵粬鐢ㄦ埛鐨?Agent
+
+  console.log
+    馃搳 Database Config: {
+      host: 'localhost',
+      port: 3306,
+      user: 'root',
+      database: 'npc_db_test',
+      password: '***'
+    }
+
+      at Object.log (config/database.js:78:9)
+
+  console.log
+    鉁?Loaded configuration from config.yaml
+
+      at log (config/config-loader.js:162:13)
+
+  console.log
+    鉁?Loaded configuration from config.yaml
+
+      at log (config/config-loader.js:162:13)
+
+  console.log
+    馃搵 Configuration loaded:
+
+      at Object.log [as init] (config/config-loader.js:205:13)
+
+  console.log
+    馃搵 Configuration loaded:
+
+      at Object.log [as init] (config/config-loader.js:205:13)
+
+  console.log
+       - Server Port: 8000
+
+      at Object.log [as init] (config/config-loader.js:206:13)
+
+  console.log
+       - Server Port: 8000
+
+      at Object.log [as init] (config/config-loader.js:206:13)
+
+  console.log
+       - Database: npc_db_test @ localhost:3306
+
+      at Object.log [as init] (config/config-loader.js:207:13)
+
+  console.log
+       - Database: npc_db_test @ localhost:3306
+
+      at Object.log [as init] (config/config-loader.js:207:13)
+
+  console.log
+       - Database User: root
+
+      at Object.log [as init] (config/config-loader.js:208:13)
+
+PASS __tests__/middleware/errorHandler.test.js
+  Error Handler Middleware
+    errorHandler
+      鈭?搴旇澶勭悊甯﹂敊璇爜鐨勯敊璇?(9 ms)
+      鈭?搴旇澶勭悊 ValidationError (1 ms)
+      鈭?搴旇澶勭悊 AGENT_NOT_FOUND 閿欒 (1 ms)
+      鈭?搴旇澶勭悊 DUPLICATE_NAME 閿欒
+      鈭?搴旇澶勭悊 LLM_API_ERROR 閿欒 (1 ms)
+      鈭?搴旇澶勭悊鏈煡閿欒锛堥粯璁?SYSTEM_ERROR锛?      鈭?搴旇璁板綍閿欒鍫嗘爤 (1 ms)
+    notFoundHandler
+      鈭?搴旇杩斿洖 404 閿欒 (1 ms)
+    requestLogger
+      鈭?搴旇璁板綍璇锋眰鏃ュ織 (2 ms)
+      鈭?搴旇鍦ㄥ搷搴斿畬鎴愭椂璁板綍鍝嶅簲鏃ュ織 (1 ms)
+
+  console.log
+    鉁?Loaded configuration from config.yaml
+
+      at log (config/config-loader.js:162:13)
+
+  console.log
+       - Database Password: ***
+
+      at Object.log [as init] (config/config-loader.js:209:13)
+
+  console.log
+    馃搵 Configuration loaded:
+
+      at Object.log [as init] (config/config-loader.js:205:13)
+
+  console.log
+       - Database User: root
+
+      at Object.log [as init] (config/config-loader.js:208:13)
+
+  console.log
+       - OpenRouter API Key: ***
+
+      at Object.log [as init] (config/config-loader.js:210:13)
+
+  console.log
+       - Database Password: ***
+
+      at Object.log [as init] (config/config-loader.js:209:13)
+
+  console.log
+       - Server Port: 8000
+
+      at Object.log [as init] (config/config-loader.js:206:13)
+
+  console.log
+       - OpenRouter API Key: ***
+
+      at Object.log [as init] (config/config-loader.js:210:13)
+
+  console.log
+       - Database: npc_db_test @ localhost:3306
+
+      at Object.log [as init] (config/config-loader.js:207:13)
+
+  console.log
+       - Database User: root
+
+      at Object.log [as init] (config/config-loader.js:208:13)
+
+  console.log
+       - Database Password: ***
+
+      at Object.log [as init] (config/config-loader.js:209:13)
+
+  console.log
+       - OpenRouter API Key: ***
+
+      at Object.log [as init] (config/config-loader.js:210:13)
+
+  console.log
+    馃搳 Database Config: {
+      host: 'localhost',
+      port: 3306,
+      user: 'root',
+      database: 'npc_db_test',
+      password: '***'
+    }
+
+      at Object.log (config/database.js:78:9)
+
+  console.log
+    馃搳 Database Config: {
+      host: 'localhost',
+      port: 3306,
+      user: 'root',
+      database: 'npc_db_test',
+      password: '***'
+    }
+
+      at Object.log (config/database.js:78:9)
+
+PASS __tests__/services/FeedbackService.test.js
+  FeedbackService
+    submitFeedback
+      鈭?搴旇鎴愬姛鎻愪氦鍙嶉 (1 ms)
+      鈭?搴旇鎷掔粷缂哄皯蹇呭～瀛楁
+      鈭?搴旇鎷掔粷鏃犳晥鐨勫弽棣堢被鍨?      鈭?搴旇鎷掔粷鏍囬瓒呰繃500瀛楃 (1 ms)
+      鈭?搴旇鏀寔鎵€鏈夋湁鏁堢殑鍙嶉绫诲瀷
+    getUserFeedbacks
+      鈭?搴旇杩斿洖鐢ㄦ埛鐨勫弽棣堝垪琛?(1 ms)
+      鈭?搴旇鏀寔鍒嗛〉
+      鈭?搴旇鏀寔绫诲瀷绛涢€?(1 ms)
+      鈭?搴旇鎷掔粷绌?userId
+    getFeedbackById
+      鈭?搴旇杩斿洖鍙嶉璇︽儏
+      鈭?搴旇鎷掔粷绌?feedbackId
+      鈭?搴旇澶勭悊鍙嶉涓嶅瓨鍦?      鈭?搴旇鎷掔粷璁块棶鍏朵粬鐢ㄦ埛鐨勫弽棣?
+  console.log
+    馃搳 Database Config: {
+      host: 'localhost',
+      port: 3306,
+      user: 'root',
+      database: 'npc_db_test',
+      password: '***'
+    }
+
+      at Object.log (config/database.js:78:9)
+
+PASS __tests__/services/UserService.test.js
+  UserService
+    login
+      鈭?搴旇鎴愬姛鐧诲綍鏈夋晥鐢ㄦ埛 (2 ms)
+      鈭?搴旇鎷掔粷绌?userId
+      鈭?搴旇鎷掔粷绌哄瘑鐮?      鈭?搴旇鎷掔粷涓嶅瓨鍦ㄧ殑鐢ㄦ埛
+      鈭?搴旇鎷掔粷閿欒鐨勫瘑鐮?    register
+      鈭?搴旇鎴愬姛娉ㄥ唽鏂扮敤鎴?(3 ms)
+      鈭?搴旇浣跨敤榛樿瀵嗙爜褰撳瘑鐮佷负绌?(1 ms)
+      鈭?搴旇鎷掔粷閲嶅鐨?userId (1 ms)
+      鈭?搴旇鎷掔粷閲嶅鐨勭敤鎴峰悕 (1 ms)
+    forgotPassword
+      鈭?搴旇鎴愬姛閲嶇疆瀵嗙爜 (1 ms)
+      鈭?搴旇鎷掔粷绌?userId (1 ms)
+      鈭?搴旇鎷掔粷绌烘柊瀵嗙爜
+      鈭?搴旇鎷掔粷涓嶅瓨鍦ㄧ殑鐢ㄦ埛 (1 ms)
+      鈭?搴旇澶勭悊瀵嗙爜鏇存柊澶辫触 (1 ms)
+
+PASS __tests__/middleware/auth.test.js
+  Auth Middleware
+    authenticate
+      鈭?搴旇閫氳繃璁よ瘉褰?Token 鏈夋晥 (15 ms)
+      鈭?搴旇鎷掔粷缂哄皯 Token 鐨勮姹?(1 ms)
+      鈭?搴旇鎷掔粷鏍煎紡閿欒鐨?Token
+      鈭?搴旇鎷掔粷鏃犳晥鐨?Token (1 ms)
+      鈭?搴旇鎷掔粷闈?Access Token (1 ms)
+      鈭?搴旇澶勭悊杩囨湡鐨?Token
+    optionalAuthenticate
+      鈭?搴旇閫氳繃璁よ瘉褰?Token 鏈夋晥
+      鈭?搴旇鍏佽鏃?Token 鐨勮姹?(1 ms)
+      鈭?搴旇璁剧疆 user 涓?null 褰?Token 鏃犳晥 (1 ms)
+      鈭?搴旇璁剧疆 user 涓?null 褰?Token 绫诲瀷閿欒 (1 ms)
+
+  console.log
+    [DEBUG] GET /api/v1/agents/:id - agentId: agent_123, userId: test_user_123
+
+      at log (routes/agents.js:239:13)
+
+  console.log
+    [DEBUG] Agent found: yes, agentId: agent_123
+
+      at log (routes/agents.js:264:13)
+
+  console.log
+    [DEBUG] Agent createdBy: undefined, requested userId: test_user_123
+
+      at log (routes/agents.js:266:15)
+
+  console.log
+    [DEBUG] Permission denied: agent.createdBy (undefined) !== userId (test_user_123)
+
+      at log (routes/agents.js:283:15)
+
+  console.log
+    [DEBUG] GET /api/v1/agents/:id - agentId: nonexistent, userId: test_user_123
+
+      at log (routes/agents.js:239:13)
+
+  console.log
+    [DEBUG] Agent found: no, agentId: nonexistent
+
+      at log (routes/agents.js:264:13)
+
+  console.log
+    [DEBUG] Agent not found: nonexistent
+
+      at log (routes/agents.js:271:15)
+
+  console.log
+    馃搳 Database Config: {
+      host: 'localhost',
+      port: 3306,
+      user: 'root',
+      database: 'npc_db_test',
+      password: '***'
+    }
+
+      at Object.log (config/database.js:78:9)
+
+  console.log
+    鉁?Loaded configuration from config.yaml
+
+      at log (config/config-loader.js:162:13)
+
+FAIL __tests__/routes/feedbacks.test.js
+  Feedbacks API Routes
+    POST /api/v1/feedbacks
+      脳 搴旇鎴愬姛鎻愪氦鍙嶉 (243 ms)
+      鈭?搴旇鎷掔粷缂哄皯蹇呭～瀛楁鐨勮姹?(16 ms)
+      鈭?搴旇澶勭悊鏃犳晥鐨勫弽棣堢被鍨?(16 ms)
+    GET /api/v1/feedbacks
+      鈭?搴旇杩斿洖鐢ㄦ埛鐨勫弽棣堝垪琛?(15 ms)
+      鈭?搴旇鏀寔鍒嗛〉鍙傛暟 (19 ms)
+      鈭?搴旇鏀寔绫诲瀷绛涢€?(9 ms)
+    GET /api/v1/feedbacks/:id
+      鈭?搴旇杩斿洖鍙嶉璇︽儏 (6 ms)
+      鈭?搴旇澶勭悊鍙嶉涓嶅瓨鍦?(7 ms)
+      鈭?搴旇澶勭悊鏉冮檺閿欒 (11 ms)
+
+  鈼?Feedbacks API Routes 鈥?POST /api/v1/feedbacks 鈥?搴旇鎴愬姛鎻愪氦鍙嶉
+
+    expected 201 "Created", got 400 "Bad Request"
+
+      51 |         .post('/api/v1/feedbacks')
+      52 |         .send(validFeedbackData)
+    > 53 |         .expect(201);
+         |          ^
+      54 |
+      55 |       expect(response.body.success).toBe(true);
+      56 |       expect(response.body.data.id).toBe('feedback_123');
+
+      at Object.expect (__tests__/routes/feedbacks.test.js:53:10)
+      ----
+      at Test._assertStatus (node_modules/supertest/lib/test.js:252:14)
+      at node_modules/supertest/lib/test.js:308:13
+      at Test._assertFunction (node_modules/supertest/lib/test.js:285:13)
+      at Test.assert (node_modules/supertest/lib/test.js:164:23)
+      at Server.localAssert (node_modules/supertest/lib/test.js:120:14)
+
+  console.log
+    馃搵 Configuration loaded:
+
+      at Object.log [as init] (config/config-loader.js:205:13)
+
+  console.log
+       - Server Port: 8000
+
+      at Object.log [as init] (config/config-loader.js:206:13)
+
+  console.log
+       - Database: npc_db_test @ localhost:3306
+
+      at Object.log [as init] (config/config-loader.js:207:13)
+
+  console.log
+       - Database User: root
+
+      at Object.log [as init] (config/config-loader.js:208:13)
+
+  console.log
+       - Database Password: ***
+
+      at Object.log [as init] (config/config-loader.js:209:13)
+
+FAIL __tests__/routes/agents.test.js
+  Agents API Routes
+    POST /api/v1/agents
+      鈭?搴旇鎴愬姛鍒涘缓 Agent (111 ms)
+      鈭?搴旇鎷掔粷缂哄皯蹇呭～瀛楁鐨勮姹?(7 ms)
+      鈭?搴旇澶勭悊楠岃瘉閿欒 (10 ms)
+      鈭?搴旇澶勭悊閲嶅鍚嶇О閿欒 (6 ms)
+    GET /api/v1/agents
+      鈭?搴旇杩斿洖鐢ㄦ埛鐨?Agent 鍒楄〃 (17 ms)
+    GET /api/v1/agents/:id
+      脳 搴旇杩斿洖 Agent 璇︽儏 (13 ms)
+      鈭?搴旇澶勭悊 Agent 涓嶅瓨鍦?(23 ms)
+    PUT /api/v1/agents/:id
+      鈭?搴旇鎴愬姛鏇存柊 Agent (7 ms)
+      鈭?搴旇澶勭悊鏉冮檺閿欒 (6 ms)
+    DELETE /api/v1/agents/:id
+      鈭?搴旇鎴愬姛鍒犻櫎 Agent锛堣蒋鍒犻櫎锛?(7 ms)
+      鈭?搴旇鏀寔纭垹闄?(3 ms)
+      鈭?搴旇澶勭悊鏉冮檺閿欒 (4 ms)
+
+  鈼?Agents API Routes 鈥?GET /api/v1/agents/:id 鈥?搴旇杩斿洖 Agent 璇︽儏
+
+    expected 200 "OK", got 404 "Not Found"
+
+      167 |       const response = await request(app)
+      168 |         .get(`/api/v1/agents/${agentId}`)
+    > 169 |         .expect(200);
+          |          ^
+      170 |
+      171 |       expect(response.body.success).toBe(true);
+      172 |       expect(response.body.data.id).toBe(agentId);
+
+      at Object.expect (__tests__/routes/agents.test.js:169:10)
+      ----
+      at Test._assertStatus (node_modules/supertest/lib/test.js:252:14)
+      at node_modules/supertest/lib/test.js:308:13
+      at Test._assertFunction (node_modules/supertest/lib/test.js:285:13)
+      at Test.assert (node_modules/supertest/lib/test.js:164:23)
+      at Server.localAssert (node_modules/supertest/lib/test.js:120:14)
+
+  console.log
+       - OpenRouter API Key: ***
+
+      at Object.log [as init] (config/config-loader.js:210:13)
+
+PASS __tests__/utils/jwt.test.js
+  JWT Utils
+    generateAccessToken
+      鈭?搴旇鐢熸垚鏈夋晥鐨?Access Token (7 ms)
+      鈭?Token 搴旇鍖呭惈姝ｇ‘鐨勮浇鑽?(1 ms)
+      鈭?Token 搴旇鍖呭惈杩囨湡鏃堕棿 (1 ms)
+    generateRefreshToken
+      鈭?搴旇鐢熸垚鏈夋晥鐨?Refresh Token (1 ms)
+      鈭?Refresh Token 搴旇鍖呭惈姝ｇ‘鐨勭被鍨?(4 ms)
+    verifyToken
+      鈭?搴旇楠岃瘉鏈夋晥鐨?Access Token (1 ms)
+      鈭?搴旇楠岃瘉鏈夋晥鐨?Refresh Token (1 ms)
+      鈭?搴旇鎷掔粷鏃犳晥鐨?Token (11 ms)
+      鈭?搴旇鎷掔粷鏍煎紡閿欒鐨?Token (3 ms)
+      鈭?搴旇鎷掔粷绌?Token (1 ms)
+    decodeToken
+      鈭?搴旇瑙ｇ爜 Token锛堜笉楠岃瘉锛?(1 ms)
+      鈭?搴旇瑙ｇ爜鏃犳晥鐨?Token锛堜笉楠岃瘉锛?(1 ms)
+    Token 杩囨湡澶勭悊
+      鈭?搴旇姝ｇ‘澶勭悊杩囨湡鐨?Token
+
+PASS __tests__/repositories/SessionRepository.test.js
+  SessionRepository
+    normalizeParticipants
+      鈭?搴旇瀵瑰弬涓庤€呭垪琛ㄨ繘琛屾帓搴?(28 ms)
+    getOrCreateSession
+      鈭?搴旇杩斿洖鐜版湁浼氳瘽褰撳瓨鍦?(2 ms)
+      鈭?搴旇鍒涘缓鏂颁細璇濆綋涓嶅瓨鍦?(1 ms)
+    findSessionById
+      鈭?搴旇杩斿洖浼氳瘽褰撳瓨鍦?      鈭?搴旇杩斿洖 null 褰撲笉瀛樺湪
+    findSessionsByUser
+      鈭?搴旇杩斿洖鐢ㄦ埛鐨勬墍鏈変細璇?(1 ms)
+    updateSessionActivity
+      鈭?搴旇鎴愬姛鏇存柊娲诲姩鏃堕棿 (1 ms)
+
+PASS __tests__/routes/messages.test.js
+  Messages API Routes
+    POST /api/v1/messages
+      鈭?搴旇鎴愬姛鍙戦€佹秷鎭苟杩斿洖 AI 鍥炲 (81 ms)
+      鈭?搴旇鎷掔粷缂哄皯蹇呭～瀛楁鐨勮姹?(18 ms)
+      鈭?搴旇澶勭悊 Agent 涓嶅瓨鍦ㄩ敊璇?(7 ms)
+      鈭?搴旇澶勭悊 LLM API 閿欒 (6 ms)
+      鈭?搴旇鏀寔鑷畾涔?contextLimit (5 ms)
+
+PASS __tests__/repositories/UserRepository.test.js
+  UserRepository
+    create
+      鈭?搴旇鎴愬姛鍒涘缓鐢ㄦ埛 (2 ms)
+      鈭?搴旇娣诲姞鏃堕棿鎴?(1 ms)
+    findById
+      鈭?搴旇杩斿洖鐢ㄦ埛褰?ID 瀛樺湪 (3 ms)
+      鈭?搴旇杩斿洖 null 褰?ID 涓嶅瓨鍦?(3 ms)
+      鈭?搴旇杞崲鏁版嵁搴撳瓧娈靛悕 (5 ms)
+    findByUsername
+      鈭?搴旇杩斿洖鐢ㄦ埛褰撶敤鎴峰悕瀛樺湪 (2 ms)
+      鈭?搴旇杩斿洖 null 褰撶敤鎴峰悕涓嶅瓨鍦?(1 ms)
+    updatePassword
+      鈭?搴旇鎴愬姛鏇存柊瀵嗙爜 (1 ms)
+
+  console.log
+    馃搳 Database Config: {
+      host: 'localhost',
+      port: 3306,
+      user: 'root',
+      database: 'npc_db_test',
+      password: '***'
+    }
+
+      at Object.log (config/database.js:78:9)
+
+PASS __tests__/repositories/AgentRepository.test.js
+  AgentRepository
+    create
+      鈭?搴旇鎴愬姛鍒涘缓 Agent (1 ms)
+      鈭?搴旇鐢熸垚鍞竴鐨?Agent ID (1 ms)
+    findById
+      鈭?搴旇杩斿洖 Agent 褰?ID 瀛樺湪 (2 ms)
+      鈭?搴旇杩斿洖 null 褰?ID 涓嶅瓨鍦?(1 ms)
+    findByUserId
+      鈭?搴旇杩斿洖鐢ㄦ埛鐨?Agent 鍒楄〃 (2 ms)
+      鈭?搴旇鎺掗櫎宸插垹闄ょ殑 Agent
+    checkNameExists
+      鈭?搴旇杩斿洖 true 褰撳悕绉板凡瀛樺湪 (1 ms)
+      鈭?搴旇杩斿洖 false 褰撳悕绉颁笉瀛樺湪
+    update
+      鈭?搴旇鎴愬姛鏇存柊 Agent (1 ms)
+      鈭?搴旇杞崲瀛楁鍚嶏紙椹煎嘲鍒颁笅鍒掔嚎锛?(1 ms)
+    remove
+      鈭?搴旇鎴愬姛鍒犻櫎 Agent
+
+PASS __tests__/services/SessionService.test.js
+  SessionService
+    getOrCreateSession
+      鈭?搴旇鎴愬姛鑾峰彇鎴栧垱寤轰細璇?(2 ms)
+      鈭?搴旇鎷掔粷绌虹殑鍙備笌鑰呭垪琛?(1 ms)
+      鈭?搴旇鎷掔粷闈炴暟缁勭殑鍙備笌鑰?(1 ms)
+      鈭?搴旇鎷掔粷缂哄皯 type 鐨勫弬涓庤€?(1 ms)
+      鈭?搴旇鎷掔粷缂哄皯 id 鐨勫弬涓庤€?      鈭?搴旇鎷掔粷鏃犳晥鐨勫弬涓庤€呯被鍨?(1 ms)
+      鈭?搴旇澶勭悊 Repository 閿欒
+    findSessionByParticipants
+      鈭?搴旇杩斿洖浼氳瘽褰撳瓨鍦?(1 ms)
+      鈭?搴旇杩斿洖 null 褰撲笉瀛樺湪
+      鈭?搴旇杩斿洖 null 褰撳弬涓庤€呭垪琛ㄤ负绌?(2 ms)
+    getSessionsByUser
+      鈭?搴旇杩斿洖鐢ㄦ埛鐨勬墍鏈変細璇?(1 ms)
+      鈭?搴旇杩斿洖绌烘暟缁勫綋鐢ㄦ埛娌℃湁浼氳瘽
+    updateSessionActivity
+      鈭?搴旇鎴愬姛鏇存柊浼氳瘽娲诲姩鏃堕棿 (1 ms)
+
+PASS __tests__/routes/users.test.js
+  Users API Routes
+    POST /api/v1/users/login
+      鈭?搴旇鎴愬姛鐧诲綍骞惰繑鍥?Token (78 ms)
+      鈭?搴旇鎷掔粷缂哄皯 userId 鐨勮姹?(9 ms)
+      鈭?搴旇鎷掔粷缂哄皯瀵嗙爜鐨勮姹?(57 ms)
+      鈭?搴旇澶勭悊鐢ㄦ埛涓嶅瓨鍦ㄩ敊璇?(22 ms)
+      鈭?搴旇澶勭悊瀵嗙爜閿欒 (37 ms)
+    POST /api/v1/users/register
+      鈭?搴旇鎴愬姛娉ㄥ唽鏂扮敤鎴?(8 ms)
+      鈭?搴旇鎷掔粷缂哄皯蹇呭～瀛楁鐨勮姹?(9 ms)
+      鈭?搴旇澶勭悊閲嶅鐨?userId (6 ms)
+      鈭?搴旇澶勭悊閲嶅鐨勭敤鎴峰悕 (20 ms)
+    POST /api/v1/users/forgot-password
+      鈭?搴旇鎴愬姛閲嶇疆瀵嗙爜 (5 ms)
+      鈭?搴旇鎷掔粷缂哄皯 userId 鐨勮姹?(4 ms)
+      鈭?搴旇鎷掔粷缂哄皯鏂板瘑鐮佺殑璇锋眰 (5 ms)
+      鈭?搴旇澶勭悊鐢ㄦ埛涓嶅瓨鍦ㄩ敊璇?(6 ms)
+
+------------------------|---------|----------|---------|---------|---------------------------------------------------------------------------
+File                    | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                                                         
+------------------------|---------|----------|---------|---------|---------------------------------------------------------------------------
+All files               |   55.84 |       45 |   56.75 |   56.25 |                                                                           
+ middleware             |     100 |    83.33 |     100 |     100 |                                                                           
+  auth.js               |     100 |     87.5 |     100 |     100 | 73-74                                                                     
+  errorHandler.js       |     100 |       75 |     100 |     100 | 87,96                                                                     
+ repositories           |   55.51 |    42.47 |   61.36 |   55.69 |                                                                           
+  AgentRepository.js    |   81.35 |    81.57 |      80 |   83.63 | 198,213,280-292,336,378                                                   
+  EventRepository.js    |   51.35 |     6.66 |   54.54 |      50 | 214-311                                                                   
+  FeedbackRepository.js |     2.7 |        0 |       0 |     2.7 | 26-256                                                                    
+  SessionRepository.js  |   86.27 |    78.57 |      75 |   89.58 | 257-265,310                                                               
+  UserRepository.js     |   95.83 |    83.33 |     100 |   95.83 | 179                                                                       
+ routes                 |   60.07 |    39.03 |    60.6 |   60.07 |                                                                           
+  agents.js             |   82.92 |    49.27 |     100 |   82.92 | 179,197,243,252,293-304,359,368,434,443                                   
+  feedbacks.js          |   86.48 |    68.42 |     100 |   86.48 | 85,107,119-121                                                            
+  history.js            |       0 |        0 |       0 |       0 | 33-223                                                                    
+  import.js             |       0 |        0 |       0 |       0 | 16-104                                                                    
+  messages.js           |      60 |       30 |      60 |      60 | 190-228                                                                   
+  sessions.js           |       0 |        0 |       0 |       0 | 34-208                                                                    
+  users.js              |     100 |     62.5 |     100 |     100 | 75-76,96-97,120-121                                                       
+ services               |   55.63 |    53.08 |   55.31 |   56.44 |                                                                           
+  AgentService.js       |    77.7 |     72.8 |     100 |    78.2 | 68,83,106,122,140,147-157,244,296,350,354,440-442,445-447,465-474,480-486 
+  EventService.js       |   58.33 |    64.48 |   57.14 |   58.33 | 77,89,109,129,144,158,166,175,181,187,269,292,315,319,335-450             
+  FeedbackService.js    |     100 |      100 |     100 |     100 |                                                                           
+  ImportService.js      |       0 |        0 |       0 |       0 | 19-188                                                                    
+  LLMService.js         |    2.58 |        0 |       0 |     2.7 | 80-550                                                                    
+  MessageService.js     |   91.42 |       80 |   66.66 |   91.42 | 115,122,179                                                               
+  SessionService.js     |   70.37 |    66.66 |   66.66 |   70.37 | 119,136,152-173                                                           
+  UserService.js        |     100 |      100 |     100 |     100 |                                                                           
+ utils                  |    23.4 |        5 |   27.77 |    23.4 |                                                                           
+  jwt.js                |   78.94 |       50 |     100 |   78.94 | 73-75,82                                                                  
+  logger.js             |       0 |        0 |       0 |       0 | 47-182                                                                    
+  validator.js          |   17.07 |     1.78 |   14.28 |   17.07 | 64-204                                                                    
+------------------------|---------|----------|---------|---------|---------------------------------------------------------------------------
+Test Suites: 2 failed, 15 passed, 17 total
+Tests:       2 failed, 183 passed, 185 total
+Snapshots:   0 total
+Time:        7.726 s
+Ran all test suites.

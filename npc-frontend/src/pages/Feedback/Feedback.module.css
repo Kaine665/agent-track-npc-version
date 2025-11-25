@@ -1,0 +1,86 @@
+/**
+ * ============================================
+ * 反馈页面样式 (Feedback.module.css)
+ * ============================================
+ */
+
+.feedbackContainer {
+  background: #fff;
+  border-radius: 8px;
+  padding: 32px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.feedbackHeader {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.feedbackDescription {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.feedbackForm {
+  margin-top: 24px;
+}
+
+.feedbackForm :global(.ant-form-item-label > label) {
+  font-weight: 500;
+  color: #333;
+}
+
+.feedbackForm :global(.ant-input),
+.feedbackForm :global(.ant-select-selector),
+.feedbackForm :global(.ant-input-affix-wrapper) {
+  border-radius: 6px;
+}
+
+.feedbackForm :global(.ant-input:focus),
+.feedbackForm :global(.ant-select-focused .ant-select-selector),
+.feedbackForm :global(.ant-input-affix-wrapper-focused) {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
+}
+
+.submitButton {
+  min-width: 120px;
+  height: 40px;
+  font-size: 15px;
+}
+
+.userInfo {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.userInfoText {
+  color: #999;
+  font-size: 12px;
+  margin: 0;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .feedbackContainer {
+    padding: 20px;
+  }
+
+  .feedbackHeader {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+  }
+
+  .feedbackDescription {
+    font-size: 13px;
+  }
+
+  .submitButton {
+    width: 100%;
+  }
+}
+

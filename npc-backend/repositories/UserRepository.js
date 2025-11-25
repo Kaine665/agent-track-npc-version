@@ -143,8 +143,49 @@ async function findByUsername(username) {
   };
 }
 
+/**
+ * 更新用户密码
+ *
+ * 【功能说明】
+ * 更新指定用户的密码
+ *
+ * 【工作流程】
+ * 1. 执行 SQL 更新语句
+ * 2. 更新 updated_at 时间戳
+ * 3. 返回更新后的用户对象
+ *
+ * 【参数说明】
+ * @param {string} userId - 用户 ID
+ * @param {string} newPassword - 新密码
+ * @returns {Promise<Object|null>} 更新后的用户对象，如果用户不存在则返回 null
+ *
+ * 【错误处理】
+ * - 用户不存在 → 返回 null
+ * - 数据库错误 → 抛出异常
+ */
+async function updatePassword(userId, newPassword) {
+  const now = Date.now();
+  
+  const sql = `
+    UPDATE users 
+    SET password = ?, updated_at = ?
+    WHERE id = ?
+  `;
+  
+  const result = await query(sql, [newPassword, now, userId]);
+  
+  // 检查是否更新成功（affectedRows > 0 表示有行被更新）
+  if (result.affectedRows === 0) {
+    return null; // 用户不存在
+  }
+  
+  // 返回更新后的用户信息
+  return await findById(userId);
+}
+
 module.exports = {
   create,
   findById,
   findByUsername,
+  updatePassword,
 };

@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { Modal, Input, Form, Button, message, Alert } from 'antd';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import ForgotPasswordModal from './ForgotPasswordModal';
 
 const LoginModal = ({ open, onClose }) => {
   const [form] = Form.useForm();
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [forgotPasswordVisible, setForgotPasswordVisible] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (values) => {
@@ -65,7 +67,8 @@ const LoginModal = ({ open, onClose }) => {
 
         <Form.Item
           name="password"
-          label="密码 (可选)"
+          label="密码"
+          rules={[{ required: true, message: '请输入密码' }]}
         >
           <Input.Password placeholder="请输入密码" />
         </Form.Item>
@@ -75,7 +78,24 @@ const LoginModal = ({ open, onClose }) => {
             确认登录
           </Button>
         </Form.Item>
+
+        <Form.Item style={{ marginBottom: 0, textAlign: 'center' }}>
+          <Button 
+            type="link" 
+            onClick={() => {
+              setForgotPasswordVisible(true);
+            }}
+            style={{ padding: 0 }}
+          >
+            忘记密码？
+          </Button>
+        </Form.Item>
       </Form>
+
+      <ForgotPasswordModal
+        open={forgotPasswordVisible}
+        onClose={() => setForgotPasswordVisible(false)}
+      />
     </Modal>
   );
 };

@@ -127,7 +127,7 @@ async function create(agentData) {
  * 通过 ID 查询 Agent
  *
  * 【功能说明】
- * 根据 agentId 从数据库查询 Agent
+ * 根据 agentId 从数据库查询 Agent（包括已删除的）
  *
  * 【工作流程】
  * 1. 执行 SQL 查询
@@ -157,6 +157,8 @@ async function findById(agentId) {
     avatarUrl: agent.avatar_url,
     createdAt: agent.created_at,
     updatedAt: agent.updated_at,
+    deleted: agent.deleted || false,
+    deletedAt: agent.deleted_at || null,
   };
 }
 
@@ -165,22 +167,56 @@ async function findById(agentId) {
  *
  * 【功能说明】
  * 根据 userId 查询该用户创建的所有 Agent，按创建时间倒序排列
+ * 默认排除已删除的 Agent（软删除）
  *
  * 【工作流程】
  * 1. 执行 SQL 查询（使用 user_id 索引）
- * 2. 按创建时间倒序排序
- * 3. 返回 Agent 对象数组
+ * 2. 排除已删除的 Agent（deleted = FALSE 或 NULL）
+ * 3. 按创建时间倒序排序
+ * 4. 返回 Agent 对象数组
  *
  * 【参数说明】
  * @param {string} userId - 用户 ID
  * @returns {Promise<Array<Object>>} Agent 对象数组，按创建时间倒序
  */
 async function findByUserId(userId) {
-  const sql = `
-    SELECT * FROM agents 
-    WHERE user_id = ? 
-    ORDER BY created_at DESC
-  `;
+  // 检查deleted字段是否存在（向后兼容）
+  // 如果字段不存在，使用简单的查询；如果存在，使用软删除过滤
+  let sql;
+  try {
+    // 先尝试查询表结构，检查deleted字段是否存在
+    const [columns] = await query(`
+      SELECT COLUMN_NAME 
+      FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_SCHEMA = DATABASE() 
+      AND TABLE_NAME = 'agents' 
+      AND COLUMN_NAME = 'deleted'
+    `);
+    
+    if (columns && columns.length > 0) {
+      // deleted字段存在，使用软删除过滤
+      sql = `
+        SELECT * FROM agents 
+        WHERE user_id = ? AND (deleted IS NULL OR deleted = FALSE)
+        ORDER BY created_at DESC
+      `;
+    } else {
+      // deleted字段不存在，不使用软删除过滤（向后兼容）
+      sql = `
+        SELECT * FROM agents 
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+      `;
+    }
+  } catch (error) {
+    // 如果查询表结构失败，使用简单查询（向后兼容）
+    sql = `
+      SELECT * FROM agents 
+      WHERE user_id = ?
+      ORDER BY created_at DESC
+    `;
+  }
+  
   const results = await query(sql, [userId]);
 
   return results.map((agent) => ({
@@ -194,6 +230,8 @@ async function findByUserId(userId) {
     avatarUrl: agent.avatar_url,
     createdAt: agent.created_at,
     updatedAt: agent.updated_at,
+    deleted: agent.deleted || false,
+    deletedAt: agent.deleted_at || null,
   }));
 }
 
@@ -255,13 +293,66 @@ async function getExistingAgentIdByName(userId, name) {
 }
 
 /**
- * 删除 Agent（可选功能，当前阶段不需要）
+ * 更新 Agent
  *
  * 【功能说明】
- * 删除指定的 Agent
+ * 更新指定 Agent 的字段
+ *
+ * 【工作流程】
+ * 1. 构建更新 SQL（只更新提供的字段）
+ * 2. 执行更新操作
+ * 3. 返回更新后的 Agent 对象
+ *
+ * 【参数说明】
+ * @param {string} agentId - Agent ID
+ * @param {Object} updateData - 要更新的字段
+ * @returns {Promise<Object>} 更新后的 Agent 对象
+ */
+async function update(agentId, updateData) {
+  const allowedFields = ['name', 'type', 'model', 'provider', 'system_prompt', 'avatar_url', 'deleted', 'deleted_at'];
+  const fields = [];
+  const values = [];
+
+  // 构建更新字段
+  for (const [key, value] of Object.entries(updateData)) {
+    // 将驼峰命名转换为下划线命名
+    let dbKey = key;
+    if (key === 'systemPrompt') dbKey = 'system_prompt';
+    else if (key === 'avatarUrl') dbKey = 'avatar_url';
+    else if (key === 'deletedAt') dbKey = 'deleted_at';
+    
+    if (allowedFields.includes(dbKey)) {
+      fields.push(`${dbKey} = ?`);
+      values.push(value);
+    }
+  }
+
+  // 添加 updated_at
+  fields.push('updated_at = ?');
+  values.push(Date.now());
+
+  if (fields.length === 0) {
+    // 如果没有要更新的字段，直接返回原对象
+    return await findById(agentId);
+  }
+
+  values.push(agentId);
+
+  const sql = `UPDATE agents SET ${fields.join(', ')} WHERE id = ?`;
+  await query(sql, values);
+
+  // 返回更新后的对象
+  return await findById(agentId);
+}
+
+/**
+ * 删除 Agent（硬删除）
+ *
+ * 【功能说明】
+ * 物理删除指定的 Agent（永久删除）
  *
  * 【注意】
- * 当前阶段不需要删除功能，但可以预留接口
+ * 硬删除会永久删除数据，谨慎使用
  *
  * 【参数说明】
  * @param {string} agentId - Agent ID
@@ -293,6 +384,7 @@ module.exports = {
   findByUserId,
   checkNameExists,
   getExistingAgentIdByName,
+  update,
   remove,
   clearAll,
 };

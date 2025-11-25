@@ -31,6 +31,8 @@ import CreateAgent from '../pages/CreateAgent/CreateAgent';
 import Chat from '../pages/Chat/Chat';
 import ApiTest from '../pages/ApiTest/ApiTest';
 import Register from '../pages/Register/Register';
+import UpdateLog from '../pages/UpdateLog/UpdateLog';
+import Feedback from '../pages/Feedback/Feedback';
 
 /**
  * 路由配置
@@ -60,6 +62,14 @@ const router = createBrowserRouter([
   {
     path: '/register',
     element: <Register />, // 注册页
+  },
+  {
+    path: '/updates',
+    element: <UpdateLog />, // 更新日志页
+  },
+  {
+    path: '/feedback',
+    element: <Feedback />, // 用户反馈页
   },
   {
     path: '/agents',

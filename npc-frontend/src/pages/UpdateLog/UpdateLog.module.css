@@ -1,0 +1,139 @@
+/**
+ * ============================================
+ * 更新日志页面样式 (UpdateLog.module.css)
+ * ============================================
+ */
+
+.markdownContainer {
+  background: #fff;
+  padding: 32px;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  line-height: 1.8;
+}
+
+/* Markdown 标题样式 */
+.markdownH1 {
+  font-size: 28px;
+  font-weight: 600;
+  margin: 24px 0 16px 0;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #f0f0f0;
+  color: #262626;
+}
+
+.markdownH2 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 20px 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0f0f0;
+  color: #262626;
+}
+
+.markdownH3 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 16px 0 8px 0;
+  color: #262626;
+}
+
+/* Markdown 段落样式 */
+.markdownP {
+  margin: 12px 0;
+  color: #595959;
+  font-size: 15px;
+}
+
+/* Markdown 列表样式 */
+.markdownUl,
+.markdownOl {
+  margin: 12px 0;
+  padding-left: 24px;
+  color: #595959;
+}
+
+.markdownLi {
+  margin: 8px 0;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+/* Markdown 引用样式 */
+.markdownBlockquote {
+  margin: 16px 0;
+  padding: 12px 16px;
+  border-left: 4px solid #1890ff;
+  background: #f5f5f5;
+  color: #595959;
+  border-radius: 4px;
+}
+
+/* Markdown 分隔线样式 */
+.markdownHr {
+  margin: 24px 0;
+  border: none;
+  border-top: 1px solid #e8e8e8;
+}
+
+/* Markdown 表格样式 */
+.markdownTable {
+  width: 100%;
+  margin: 16px 0;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.markdownTable th,
+.markdownTable td {
+  padding: 12px;
+  border: 1px solid #e8e8e8;
+  text-align: left;
+}
+
+.markdownTable th {
+  background: #fafafa;
+  font-weight: 600;
+  color: #262626;
+}
+
+.markdownTable td {
+  color: #595959;
+}
+
+/* Markdown 链接样式 */
+.markdownLink {
+  color: #1890ff;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.markdownLink:hover {
+  color: #40a9ff;
+  text-decoration: underline;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .markdownContainer {
+    padding: 20px;
+  }
+
+  .markdownH1 {
+    font-size: 24px;
+  }
+
+  .markdownH2 {
+    font-size: 20px;
+  }
+
+  .markdownH3 {
+    font-size: 18px;
+  }
+
+  .markdownP,
+  .markdownLi {
+    font-size: 14px;
+  }
+}
+

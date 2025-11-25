@@ -20,7 +20,7 @@
  * @lastModified 2025-01-22
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { Avatar, Typography, Button, message } from 'antd';
 import { UserOutlined, RobotOutlined, CopyOutlined, CheckOutlined } from '@ant-design/icons';
@@ -29,6 +29,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
+import { copyToClipboard } from '../../utils/clipboard';
 import styles from './MessageBubble.module.css';
 
 const { Text } = Typography;
@@ -110,6 +111,97 @@ const CodeBlock = ({ node, inline, className, children, ...props }) => {
 
 const MessageBubble = ({ message, avatarUrl }) => {
   const isUser = message.role === 'user';
+  const [copied, setCopied] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true); // 默认展开
+  const [showToggle, setShowToggle] = useState(false); // 是否显示收起/展开按钮
+  const contentRef = useRef(null);
+
+  // 复制单条AI消息
+  const handleCopyMessage = async () => {
+    if (!message.content) {
+      message.warning('没有内容可复制');
+      return;
+    }
+
+    try {
+      const success = await copyToClipboard(message.content);
+      if (success) {
+        setCopied(true);
+        message.success('已复制');
+        setTimeout(() => setCopied(false), 2000);
+      } else {
+        message.error('复制失败');
+      }
+    } catch (error) {
+      console.error('复制失败:', error);
+      message.error('复制失败');
+    }
+  };
+
+  // 检测内容是否超过2行（仅用于AI消息）
+  useEffect(() => {
+    if (isUser || !contentRef.current) return;
+
+    const checkContentHeight = () => {
+      const element = contentRef.current;
+      if (!element) return;
+
+      // 临时移除收起样式，测量实际高度
+      const wasCollapsed = element.classList.contains(styles.collapsed);
+      if (wasCollapsed) {
+        element.classList.remove(styles.collapsed);
+      }
+
+      // 强制重排以获取准确高度
+      void element.offsetHeight;
+
+      // 获取行高（使用计算后的样式）
+      const computedStyle = window.getComputedStyle(element);
+      const lineHeight = parseFloat(computedStyle.lineHeight) || parseFloat(computedStyle.fontSize) * 1.6;
+      const maxHeight = lineHeight * 2; // 2行高度
+      const actualHeight = element.scrollHeight;
+
+      // 恢复收起状态（如果需要）
+      if (wasCollapsed && !isExpanded) {
+        element.classList.add(styles.collapsed);
+      }
+
+      // 如果实际高度超过2行，显示收起/展开按钮
+      setShowToggle(actualHeight > maxHeight);
+    };
+
+    // 延迟检查，确保内容已渲染（Markdown 渲染可能需要时间）
+    const timer1 = setTimeout(checkContentHeight, 100);
+    const timer2 = setTimeout(checkContentHeight, 500); // 二次检查，确保 Markdown 完全渲染
+
+    // 使用 MutationObserver 监听 DOM 变化（Markdown 渲染）
+    const observer = new MutationObserver(() => {
+      checkContentHeight();
+    });
+
+    if (contentRef.current) {
+      observer.observe(contentRef.current, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
+    }
+
+    // 监听窗口大小变化
+    window.addEventListener('resize', checkContentHeight);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      observer.disconnect();
+      window.removeEventListener('resize', checkContentHeight);
+    };
+  }, [message.content, isUser, isExpanded]);
+
+  // 切换展开/收起状态
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded);
+  };
 
   // 容器样式
   const containerStyle = {
@@ -171,7 +263,11 @@ const MessageBubble = ({ message, avatarUrl }) => {
             </div>
           ) : (
             // AI 消息：Markdown 渲染
-            <div style={markdownContainerStyle} className={`markdown-content ${styles.markdownContent}`}>
+            <div 
+              ref={contentRef}
+              style={markdownContainerStyle} 
+              className={`markdown-content ${styles.markdownContent} ${!isExpanded ? styles.collapsed : ''}`}
+            >
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeRaw]}
@@ -240,6 +336,45 @@ const MessageBubble = ({ message, avatarUrl }) => {
             </div>
           )}
         </div>
+        
+        {/* AI消息的操作按钮（收起/展开和复制） */}
+        {!isUser && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+            {/* 收起/展开按钮 */}
+            {showToggle && (
+              <Button
+                type="text"
+                size="small"
+                onClick={toggleExpand}
+                style={{
+                  padding: '0 4px',
+                  height: 'auto',
+                  fontSize: 12,
+                  color: '#1890ff'
+                }}
+                className={styles.toggleButton}
+              >
+                {isExpanded ? '收起' : '展开'}
+              </Button>
+            )}
+            {/* 复制按钮 */}
+            <Button
+              type="text"
+              size="small"
+              icon={copied ? <CheckOutlined /> : <CopyOutlined />}
+              onClick={handleCopyMessage}
+              style={{
+                padding: '0 4px',
+                height: 'auto',
+                fontSize: 12,
+                color: '#999'
+              }}
+              className={styles.copyButton}
+            >
+              {copied ? '已复制' : '复制'}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* 用户头像 (右侧) */}
