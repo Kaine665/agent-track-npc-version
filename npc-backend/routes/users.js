@@ -12,7 +12,7 @@ const router = express.Router();
 const userService = require('../services/UserService');
 const { generateAccessToken, generateRefreshToken } = require('../utils/jwt');
 const { authenticate } = require('../middleware/auth');
-const versionConfig = require('../config/version');
+const versionService = require('../config/version');
 
 // 统一响应辅助函数 (复制自其他路由或引入)
 function sendSuccessResponse(res, statusCode, data) {
@@ -185,11 +185,14 @@ router.get('/version-info', authenticate, async (req, res) => {
       return sendErrorResponse(res, 404, 'USER_NOT_FOUND', 'User not found');
     }
 
-    // 检查是否需要显示更新提示
-    const updateInfo = versionConfig.shouldShowUpdate(user.lastReadVersion);
+    // 检查是否需要显示更新提示（从数据库获取）
+    const updateInfo = await versionService.shouldShowUpdate(user.lastReadVersion);
+    
+    // 获取当前版本号
+    const currentVersion = await versionService.getCurrentVersion();
 
     sendSuccessResponse(res, 200, {
-      currentVersion: versionConfig.getCurrentVersion(),
+      currentVersion: currentVersion,
       shouldShowUpdate: updateInfo.shouldShow,
       changelog: updateInfo.changelog,
       lastReadVersion: user.lastReadVersion,

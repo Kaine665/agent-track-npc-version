@@ -13,10 +13,15 @@
  */
 
 import React from 'react';
-import { Modal, Typography, List, Tag, Button } from 'antd';
+import { Modal, Typography, Tag, Button } from 'antd';
 import { CheckCircleOutlined, CloseOutlined } from '@ant-design/icons';
+import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 
-const { Title, Paragraph } = Typography;
+const { Title, Text } = Typography;
 
 /**
  * 版本更新提示弹窗组件
@@ -70,29 +75,108 @@ const VersionUpdateModal = ({ open, changelog, version, onClose, onMarkRead }) =
         </Title>
 
         {changelog.releaseDate && (
-          <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
             发布日期：{changelog.releaseDate}
-          </Paragraph>
+          </Text>
         )}
 
-        {changelog.description && (
-          <Paragraph style={{ marginBottom: 16 }}>
-            {changelog.description}
-          </Paragraph>
-        )}
+        {changelog.content && (
+          <div 
+            style={{ 
+              maxHeight: '60vh', 
+              overflowY: 'auto',
+              padding: '8px 0',
+              marginBottom: 16,
+            }}
+            className="version-update-content"
+          >
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeRaw]}
+              components={{
+                code: ({ node, inline, className, children, ...props }) => {
+                  const match = /language-(\w+)/.exec(className || '');
+                  const language = match ? match[1] : '';
+                  const codeString = String(children).replace(/\n$/, '');
 
-        {changelog.features && changelog.features.length > 0 && (
-          <div>
-            <Title level={5} style={{ marginBottom: 12 }}>更新内容：</Title>
-            <List
-              size="small"
-              dataSource={changelog.features}
-              renderItem={(item) => (
-                <List.Item style={{ paddingLeft: 0, paddingRight: 0 }}>
-                  <span>{item}</span>
-                </List.Item>
-              )}
-            />
+                  if (inline) {
+                    return (
+                      <code className={className} {...props} style={{ 
+                        backgroundColor: '#f5f5f5', 
+                        padding: '2px 6px', 
+                        borderRadius: 4,
+                        fontSize: '0.9em',
+                        fontFamily: 'Monaco, Consolas, "Courier New", monospace'
+                      }}>
+                        {children}
+                      </code>
+                    );
+                  }
+
+                  return (
+                    <SyntaxHighlighter
+                      style={vscDarkPlus}
+                      language={language}
+                      PreTag="div"
+                      {...props}
+                    >
+                      {codeString}
+                    </SyntaxHighlighter>
+                  );
+                },
+                h1: ({ node, ...props }) => <h1 {...props} style={{ margin: '0.8em 0 0.4em 0', fontWeight: 600, fontSize: '1.5em' }} />,
+                h2: ({ node, ...props }) => <h2 {...props} style={{ margin: '0.8em 0 0.4em 0', fontWeight: 600, fontSize: '1.3em' }} />,
+                h3: ({ node, ...props }) => <h3 {...props} style={{ margin: '0.8em 0 0.4em 0', fontWeight: 600, fontSize: '1.1em' }} />,
+                p: ({ node, ...props }) => <p {...props} style={{ margin: '0.5em 0' }} />,
+                ul: ({ node, ...props }) => <ul {...props} style={{ margin: '0.5em 0', paddingLeft: '1.5em' }} />,
+                ol: ({ node, ...props }) => <ol {...props} style={{ margin: '0.5em 0', paddingLeft: '1.5em' }} />,
+                li: ({ node, ...props }) => <li {...props} style={{ margin: '0.25em 0' }} />,
+                blockquote: ({ node, ...props }) => (
+                  <blockquote {...props} style={{ 
+                    borderLeft: '3px solid #ddd', 
+                    paddingLeft: '1em', 
+                    margin: '0.5em 0', 
+                    color: '#666', 
+                    fontStyle: 'italic' 
+                  }} />
+                ),
+                table: ({ node, ...props }) => (
+                  <table {...props} style={{ 
+                    borderCollapse: 'collapse', 
+                    width: '100%', 
+                    margin: '0.5em 0' 
+                  }} />
+                ),
+                th: ({ node, ...props }) => (
+                  <th {...props} style={{ 
+                    border: '1px solid #ddd', 
+                    padding: '6px 12px', 
+                    textAlign: 'left',
+                    backgroundColor: '#f5f5f5',
+                    fontWeight: 600
+                  }} />
+                ),
+                td: ({ node, ...props }) => (
+                  <td {...props} style={{ 
+                    border: '1px solid #ddd', 
+                    padding: '6px 12px', 
+                    textAlign: 'left' 
+                  }} />
+                ),
+                a: ({ node, ...props }) => (
+                  <a {...props} target="_blank" rel="noopener noreferrer" style={{ color: '#1890ff', textDecoration: 'underline' }} />
+                ),
+                hr: ({ node, ...props }) => (
+                  <hr {...props} style={{ 
+                    border: 'none', 
+                    borderTop: '1px solid #ddd', 
+                    margin: '1em 0' 
+                  }} />
+                ),
+              }}
+            >
+              {changelog.content}
+            </ReactMarkdown>
           </div>
         )}
 
