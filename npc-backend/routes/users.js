@@ -11,6 +11,8 @@ const express = require('express');
 const router = express.Router();
 const userService = require('../services/UserService');
 const { generateAccessToken, generateRefreshToken } = require('../utils/jwt');
+const { authenticate } = require('../middleware/auth');
+const versionService = require('../config/version');
 
 // 统一响应辅助函数 (复制自其他路由或引入)
 function sendSuccessResponse(res, statusCode, data) {
@@ -165,6 +167,69 @@ router.post('/auto-login', async (req, res) => {
                    (code === 'AUTO_LOGIN_NOT_ALLOWED' ? 403 : 
                    (code === 'VALIDATION_ERROR' ? 400 : 500));
     sendErrorResponse(res, status, code, error.message);
+  }
+});
+
+/**
+ * 获取版本信息和更新提示
+ * 需要认证
+ */
+router.get('/version-info', authenticate, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    // 获取用户信息（包含已读版本）
+    const user = await userService.getUserById(userId);
+    
+    if (!user) {
+      return sendErrorResponse(res, 404, 'USER_NOT_FOUND', 'User not found');
+    }
+
+    // 检查是否需要显示更新提示（从数据库获取）
+    const updateInfo = await versionService.shouldShowUpdate(user.lastReadVersion);
+    
+    // 获取当前版本号
+    const currentVersion = await versionService.getCurrentVersion();
+
+    sendSuccessResponse(res, 200, {
+      currentVersion: currentVersion,
+      shouldShowUpdate: updateInfo.shouldShow,
+      changelog: updateInfo.changelog,
+      lastReadVersion: user.lastReadVersion,
+    });
+  } catch (error) {
+    const code = error.code || 'SYSTEM_ERROR';
+    sendErrorResponse(res, 500, code, error.message);
+  }
+});
+
+/**
+ * 标记用户已读版本
+ * 需要认证
+ */
+router.post('/mark-version-read', authenticate, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { version } = req.body;
+
+    if (!version) {
+      return sendErrorResponse(res, 400, 'VALIDATION_ERROR', 'Version is required');
+    }
+
+    // 更新用户已读版本
+    const user = await userService.markVersionRead(userId, version);
+
+    if (!user) {
+      return sendErrorResponse(res, 404, 'USER_NOT_FOUND', 'User not found');
+    }
+
+    sendSuccessResponse(res, 200, {
+      message: 'Version marked as read',
+      lastReadVersion: user.lastReadVersion,
+    });
+  } catch (error) {
+    const code = error.code || 'SYSTEM_ERROR';
+    sendErrorResponse(res, 500, code, error.message);
   }
 });
 

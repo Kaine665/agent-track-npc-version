@@ -1,12 +1,18 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import api from '../api';
 import { message } from 'antd';
+import VersionUpdateModal from '../components/VersionUpdateModal/VersionUpdateModal';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [versionUpdateModal, setVersionUpdateModal] = useState({
+    open: false,
+    changelog: null,
+    version: null,
+  });
 
   // 初始化时从 localStorage 恢复登录状态和 Token
   useEffect(() => {
@@ -70,6 +76,61 @@ export const AuthProvider = ({ children }) => {
     initializeAuth();
   }, []);
 
+  // 检查版本更新（用户登录后）
+  useEffect(() => {
+    const checkVersionUpdate = async () => {
+      // 只有在用户已登录且有 Token 时才检查
+      if (!user || !api.loadToken()) {
+        return;
+      }
+
+      try {
+        const response = await api.users.getVersionInfo();
+        
+        if (response.success && response.data.shouldShowUpdate && response.data.changelog) {
+          // 显示版本更新提示
+          setVersionUpdateModal({
+            open: true,
+            changelog: response.data.changelog,
+            version: response.data.currentVersion,
+          });
+        }
+      } catch (error) {
+        console.error('检查版本更新失败:', error);
+        // 静默失败，不影响用户体验
+      }
+    };
+
+    // 用户登录后延迟检查（给页面一些加载时间）
+    if (user) {
+      const timer = setTimeout(() => {
+        checkVersionUpdate();
+      }, 1000); // 延迟1秒检查
+
+      return () => clearTimeout(timer);
+    }
+  }, [user]);
+
+  // 标记版本已读
+  const handleMarkVersionRead = async (version) => {
+    try {
+      await api.users.markVersionRead(version);
+      setVersionUpdateModal({
+        open: false,
+        changelog: null,
+        version: null,
+      });
+    } catch (error) {
+      console.error('标记版本已读失败:', error);
+      // 即使失败也关闭弹窗
+      setVersionUpdateModal({
+        open: false,
+        changelog: null,
+        version: null,
+      });
+    }
+  };
+
   const login = async (userId, password) => {
     try {
       const response = await api.users.login(userId, password);
@@ -129,6 +190,13 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={{ user, login, register, logout, loading }}>
       {children}
+      <VersionUpdateModal
+        open={versionUpdateModal.open}
+        changelog={versionUpdateModal.changelog}
+        version={versionUpdateModal.version}
+        onClose={() => setVersionUpdateModal({ open: false, changelog: null, version: null })}
+        onMarkRead={handleMarkVersionRead}
+      />
     </AuthContext.Provider>
   );
 };

@@ -14,7 +14,9 @@
     "test:BE-013": "node tests/test-BE-013.js",
     "db:init": "node scripts/init-database.js",
     "test:api": "node scripts/test-api-simple.js",
-    "test:repos": "node scripts/test-repositories.js"
+    "test:repos": "node scripts/test-repositories.js",
+    "changelog:create": "node scripts/create-changelog.js",
+    "changelog:create:simple": "node scripts/create-changelog-simple.js"
   },
   "keywords": [
     "npc",
