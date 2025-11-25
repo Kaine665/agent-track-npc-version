@@ -43,6 +43,8 @@ const Chat = () => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
+  const [regeneratingMessageId, setRegeneratingMessageId] = useState(null); // 正在重新生成的消息ID
+  const [editingMessageId, setEditingMessageId] = useState(null); // 正在编辑的消息ID
 
   // 获取数据（NPC 详情和对话历史）
   useEffect(() => {
@@ -188,6 +190,8 @@ const Chat = () => {
           });
 
           setSending(false);
+          setRegeneratingMessageId(null); // 清除重新生成状态
+          setEditingMessageId(null); // 清除编辑状态
         } else if (pollCount >= maxPolls) {
           // 达到最大轮询次数，停止轮询
           if (pollingRef.current) {
@@ -195,6 +199,8 @@ const Chat = () => {
             pollingRef.current = null;
           }
           setSending(false);
+          setRegeneratingMessageId(null); // 清除重新生成状态
+          setEditingMessageId(null); // 清除编辑状态
           message.warning('等待 AI 回复超时，请稍后刷新页面查看');
         }
       } catch (error) {
@@ -276,6 +282,8 @@ const Chat = () => {
       setMessages(prev => prev.filter(m => m.id !== tempUserMsg.id));
       setInputValue(content);
       setSending(false);
+      setRegeneratingMessageId(null); // 清除重新生成状态
+      setEditingMessageId(null); // 清除编辑状态
     }
   };
 
@@ -284,6 +292,164 @@ const Chat = () => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+
+  // 重新生成回答
+  const handleRegenerate = async (aiMessage) => {
+    if (!user || !agentId || sending || regeneratingMessageId) {
+      return;
+    }
+
+    // 找到对应的用户消息（当前AI消息的前一条用户消息）
+    const messageIndex = messages.findIndex(m => m.id === aiMessage.id);
+    if (messageIndex === -1) {
+      message.error('找不到对应的消息');
+      return;
+    }
+
+    // 向前查找用户消息
+    let userMessage = null;
+    for (let i = messageIndex - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        userMessage = messages[i];
+        break;
+      }
+    }
+
+    if (!userMessage) {
+      message.warning('找不到对应的用户消息');
+      return;
+    }
+
+    setRegeneratingMessageId(aiMessage.id);
+    setSending(true); // 设置发送状态，触发轮询
+
+    try {
+      // 删除旧的AI回复
+      setMessages(prev => prev.filter(m => m.id !== aiMessage.id));
+
+      // 使用相同的用户消息内容重新发送
+      const response = await api.messages.send({
+        agentId,
+        userId: user.id,
+        message: userMessage.content
+      });
+
+      if (response.success) {
+        // 重新生成时，用户消息内容不变，但需要更新为新的事件ID和sessionId
+        // 因为后端会创建新的事件记录
+        const updatedUserMsg = {
+          ...userMessage,
+          id: response.data.id, // 新的用户消息事件ID
+          sessionId: response.data.sessionId || userMessage.sessionId, // 保持或更新sessionId
+          createdAt: response.data.createdAt || response.data.timestamp || userMessage.createdAt,
+        };
+
+        setMessages(prev => {
+          // 删除旧的用户消息（如果有），添加新的用户消息
+          const filtered = prev.filter(m => m.id !== userMessage.id);
+          return [...filtered, updatedUserMsg];
+        });
+
+        // 开始轮询检查 Agent 回复
+        if (response.data.sessionId) {
+          startPolling(response.data.sessionId, response.data.id);
+        } else {
+          setRegeneratingMessageId(null);
+          setSending(false);
+          message.warning('无法开始轮询，请刷新页面查看回复');
+        }
+      } else {
+        throw new Error(response.error?.message || '重新生成失败');
+      }
+    } catch (err) {
+      console.error('Regenerate error:', err);
+      message.error(`重新生成失败: ${err.message}`);
+      setRegeneratingMessageId(null);
+      setSending(false);
+    }
+  };
+
+  // 编辑问题并重新生成
+  const handleEdit = async (userMessage, newContent) => {
+    if (!user || !agentId || sending || editingMessageId) {
+      return;
+    }
+
+    if (!newContent.trim() || newContent === userMessage.content) {
+      return; // 内容未变化，不需要处理
+    }
+
+    setEditingMessageId(userMessage.id);
+    setSending(true); // 设置发送状态，触发轮询
+
+    try {
+      // 找到当前用户消息的位置
+      const messageIndex = messages.findIndex(m => m.id === userMessage.id);
+      if (messageIndex === -1) {
+        message.error('找不到对应的消息');
+        setEditingMessageId(null);
+        setSending(false);
+        return;
+      }
+
+      // 删除该用户消息及其后的所有AI回复（直到下一个用户消息）
+      // 找到当前用户消息的索引
+      const currentIndex = messages.findIndex(m => m.id === userMessage.id);
+      
+      // 找到下一个用户消息的索引（如果存在）
+      let nextUserIndex = -1;
+      for (let i = currentIndex + 1; i < messages.length; i++) {
+        if (messages[i].role === 'user') {
+          nextUserIndex = i;
+          break;
+        }
+      }
+      
+      // 保留当前用户消息之前的所有消息，以及下一个用户消息之后的所有消息
+      const messagesToKeep = [
+        ...messages.slice(0, currentIndex), // 当前用户消息之前的所有消息
+        ...(nextUserIndex !== -1 ? messages.slice(nextUserIndex) : []) // 下一个用户消息之后的所有消息（如果存在）
+      ];
+
+      setMessages(messagesToKeep);
+
+      // 使用新内容重新发送
+      const response = await api.messages.send({
+        agentId,
+        userId: user.id,
+        message: newContent.trim()
+      });
+
+      if (response.success) {
+        // 添加更新后的用户消息
+        const updatedUserMsg = {
+          id: response.data.id,
+          sessionId: response.data.sessionId,
+          role: 'user',
+          content: newContent.trim(),
+          createdAt: response.data.timestamp || Date.now(),
+        };
+
+        setMessages(prev => [...prev, updatedUserMsg]);
+
+        // 开始轮询检查 Agent 回复
+        if (response.data.sessionId) {
+          startPolling(response.data.sessionId, response.data.id);
+        } else {
+          setEditingMessageId(null);
+          setSending(false);
+          message.warning('无法开始轮询，请刷新页面查看回复');
+        }
+      } else {
+        throw new Error(response.error?.message || '发送失败');
+      }
+    } catch (err) {
+      console.error('Edit and regenerate error:', err);
+      message.error(`编辑并重新生成失败: ${err.message}`);
+      setEditingMessageId(null);
+      setSending(false);
     }
   };
 
@@ -474,13 +640,39 @@ const Chat = () => {
             <p>开始和 {agent?.name} 聊天吧！</p>
           </div>
         ) : (
-          messages.map((msg) => (
-            <MessageBubble 
-              key={msg.id} 
-              message={msg} 
-              avatarUrl={agent?.avatarUrl} 
-            />
-          ))
+          (() => {
+            // 预先计算所有agent消息的索引（从后往前数，只计算agent消息）
+            // 最近的两次agent消息保持完整显示，更早的自动压缩
+            const agentMessageIndices = new Map();
+            let agentCount = 0;
+            
+            // 从后往前遍历，统计每个agent消息的索引
+            for (let i = messages.length - 1; i >= 0; i--) {
+              if (messages[i].role === 'assistant') {
+                agentMessageIndices.set(messages[i].id, agentCount);
+                agentCount++;
+              }
+            }
+            
+            return messages.map((msg) => {
+              // 如果agent消息索引 >= 2（即倒数第3个或更早），则自动压缩
+              const agentIndex = agentMessageIndices.get(msg.id);
+              const autoCollapse = msg.role === 'assistant' && agentIndex !== undefined && agentIndex >= 2;
+              
+              return (
+                <MessageBubble 
+                  key={msg.id} 
+                  message={msg} 
+                  avatarUrl={agent?.avatarUrl}
+                  onRegenerate={msg.role === 'assistant' ? handleRegenerate : undefined}
+                  onEdit={msg.role === 'user' ? handleEdit : undefined}
+                  isRegenerating={regeneratingMessageId === msg.id}
+                  isEditing={editingMessageId === msg.id}
+                  autoCollapse={autoCollapse}
+                />
+              );
+            });
+          })()
         )}
         
         {/* AI 正在输入提示 */}

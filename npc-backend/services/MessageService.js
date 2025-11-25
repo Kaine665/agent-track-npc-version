@@ -50,6 +50,7 @@ const sessionService = require("./SessionService");
 const eventService = require("./EventService");
 const agentService = require("./AgentService");
 const llmService = require("./LLMService");
+const { calculateMaxLineWidth } = require("../utils/textUtils");
 
 /**
  * 发送消息
@@ -183,9 +184,10 @@ async function sendMessage(options) {
   // 不等待 LLM 回复，立即返回用户消息 Event ID
   // 前端通过轮询检查新消息来获取 Agent 回复
   return {
-    userEventId: userEvent.id,
+    userEventId: userEvent.id, // 保持与前端适配器的兼容性
     sessionId: session.sessionId,
     timestamp: userEvent.timestamp,
+    maxLineWidth: calculateMaxLineWidth(trimmedText), // 添加最长行宽度
     status: "pending", // 表示 Agent 回复正在处理中
   };
 }
@@ -240,7 +242,7 @@ async function processLLMReplyAsync(options) {
     });
 
     // 创建 Agent 回复 Event
-    await eventService.createEvent({
+    const agentEvent = await eventService.createEvent({
       sessionId: sessionId,
       userId: userId,
       agentId: agentId,
@@ -250,23 +252,72 @@ async function processLLMReplyAsync(options) {
       toId: userId,
       content: reply,
     });
+    
+    // 添加最长行宽度（虽然这里不会直接返回，但会在检查新消息时用到）
+    agentEvent.maxLineWidth = calculateMaxLineWidth(reply);
 
     console.log(`[MessageService] ✅ Agent reply created successfully for session: ${sessionId}`);
   } catch (error) {
     // LLM 调用失败，记录详细错误信息
+    const errorCode = error.code || "UNKNOWN_ERROR";
+    const errorMessage = error.message || String(error);
+    const errorStatus = error.status;
+    const errorProvider = error.provider || agent.provider;
+    
     console.error(`[MessageService] ❌ Failed to process LLM reply for session ${sessionId}:`, {
-      errorCode: error.code || "UNKNOWN_ERROR",
-      errorMessage: error.message || String(error),
-      errorStatus: error.status,
-      errorProvider: error.provider,
+      errorCode,
+      errorMessage,
+      errorStatus,
+      errorProvider,
       agentId,
       model: agent.model,
       provider: agent.provider,
       stack: error.stack,
     });
     
-    // 可以选择创建一个错误 Event，或者只记录日志
-    // 这里只记录日志，不创建错误 Event，避免影响用户体验
+    // 创建错误 Event，让前端知道 LLM 调用失败
+    // 这样用户就能看到错误信息，而不是一直等待
+    try {
+      // 构建友好的错误消息
+      let userFriendlyMessage = "抱歉，AI 回复生成失败。";
+      
+      if (errorCode === "API_KEY_MISSING") {
+        userFriendlyMessage = "AI 服务配置错误：缺少 API Key，请联系管理员。";
+      } else if (errorCode === "LLM_API_ERROR") {
+        if (errorStatus === 401) {
+          userFriendlyMessage = "AI 服务认证失败：API Key 无效或已过期，请检查配置。";
+        } else if (errorStatus === 403) {
+          userFriendlyMessage = "AI 服务权限不足：API Key 没有访问权限，请检查配置。";
+        } else if (errorStatus === 429) {
+          userFriendlyMessage = "AI 服务请求过于频繁，请稍后再试。";
+        } else {
+          userFriendlyMessage = `AI 服务调用失败：${errorMessage}`;
+        }
+      } else if (errorCode === "LLM_API_TIMEOUT") {
+        userFriendlyMessage = "AI 服务响应超时，请稍后再试。";
+      } else if (errorCode === "INVALID_PROVIDER") {
+        userFriendlyMessage = `AI 服务提供商未启用：${errorMessage}`;
+      } else {
+        userFriendlyMessage = `AI 回复生成失败：${errorMessage}`;
+      }
+      
+      // 创建错误 Event（作为 Agent 回复）
+      await eventService.createEvent({
+        sessionId: sessionId,
+        userId: userId,
+        agentId: agentId,
+        fromType: "agent",
+        fromId: agentId,
+        toType: "user",
+        toId: userId,
+        content: userFriendlyMessage,
+      });
+      
+      console.log(`[MessageService] ✅ Error event created for session: ${sessionId}`);
+    } catch (eventError) {
+      // 如果创建错误 Event 也失败，只记录日志
+      console.error(`[MessageService] ❌ Failed to create error event for session ${sessionId}:`, eventError);
+    }
   }
 }
 

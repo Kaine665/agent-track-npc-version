@@ -71,3 +71,13 @@
   text-overflow: ellipsis;
 }
 
+/* 操作按钮样式 */
+.actionButton {
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.actionButton:hover {
+  opacity: 1;
+}
+

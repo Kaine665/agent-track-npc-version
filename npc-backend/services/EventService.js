@@ -396,6 +396,13 @@ async function getHistoryByUserAndAgent(userId, agentId) {
   // 获取该 Session 的所有事件
   const events = await eventRepository.getEventsBySession(session.sessionId);
 
+  // 为每个事件计算最长行宽度
+  const { calculateMaxLineWidth } = require('../utils/textUtils');
+  const eventsWithWidth = events.map(event => ({
+    ...event,
+    maxLineWidth: calculateMaxLineWidth(event.content || ''),
+  }));
+
   // 返回 Session 信息和事件列表
   return {
     session: {
@@ -404,7 +411,7 @@ async function getHistoryByUserAndAgent(userId, agentId) {
       createdAt: session.createdAt,
       lastActiveAt: session.lastActiveAt,
     },
-    events: events,
+    events: eventsWithWidth,
   };
 }
 

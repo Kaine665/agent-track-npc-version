@@ -17,8 +17,8 @@ export const AuthProvider = ({ children }) => {
   // 初始化时从 localStorage 恢复登录状态和 Token
   useEffect(() => {
     const initializeAuth = async () => {
-      // 恢复 Token
-      const token = api.loadToken();
+      // 直接从 localStorage 恢复 Token（不依赖 API 适配器初始化）
+      const token = localStorage.getItem('npc_access_token');
       
       // 恢复用户信息
       const storedUser = localStorage.getItem('npc_user');
@@ -33,8 +33,24 @@ export const AuthProvider = ({ children }) => {
         }
       }
 
+      // 如果有 Token，先设置到 API 适配器（如果已初始化）
+      if (token && api.setToken) {
+        api.setToken(token);
+      }
+
       // 如果有用户信息但没有 Token，尝试自动登录（老用户迁移）
       if (userData && userData.id && !token) {
+        // 等待 API 适配器初始化完成
+        if (!api.isInitialized) {
+          await new Promise((resolve) => {
+            if (api.isInitialized) {
+              resolve();
+            } else {
+              api.onInitialized(() => resolve());
+            }
+          });
+        }
+
         try {
           console.log('尝试自动登录（老用户迁移）:', userData.id);
           const response = await api.users.autoLogin(userData.id);
@@ -65,7 +81,7 @@ export const AuthProvider = ({ children }) => {
           setUser(null);
           localStorage.removeItem('npc_user');
         }
-      } else if (userData) {
+      } else if (userData && token) {
         // 有用户信息和 Token，直接恢复
         setUser(userData);
       }

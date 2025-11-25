@@ -1,0 +1,41 @@
+.dashboard {
+  /* padding 由 admin-content 处理 */
+}
+
+.pageHeader {
+  margin-bottom: 24px;
+}
+
+.pageHeader h1 {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #1d1d1f 0%, #434344 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.statCard {
+  transition: transform 0.3s ease, box-shadow 0.3s ease !important;
+  border: none !important;
+  background: white !important;
+}
+
+.statCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md) !important;
+}
+
+.chartCard {
+  height: 100%;
+}
+
+.placeholder {
+  height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--apple-text-secondary);
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+}
