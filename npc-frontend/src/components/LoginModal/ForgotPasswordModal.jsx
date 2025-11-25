@@ -76,3 +76,4 @@ const ForgotPasswordModal = ({ open, onClose }) => {
 
 export default ForgotPasswordModal;
 
+

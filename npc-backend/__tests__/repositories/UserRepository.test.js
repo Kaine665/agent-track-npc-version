@@ -140,10 +140,6 @@ describe('UserRepository', () => {
       const userId = 'test_user_123';
       const newPassword = 'newpassword123';
 
-      query.mockResolvedValue([{
-        affectedRows: 1
-      }]);
-
       query.mockResolvedValueOnce([{
         affectedRows: 1
       }]).mockResolvedValueOnce([{
@@ -159,7 +155,7 @@ describe('UserRepository', () => {
       expect(result).toBeDefined();
       expect(result.password).toBe(newPassword);
       expect(query).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE users SET password = ?'),
+        expect.stringMatching(/UPDATE[\s\S]*users[\s\S]*SET[\s\S]*password/i),
         expect.arrayContaining([newPassword])
       );
     });

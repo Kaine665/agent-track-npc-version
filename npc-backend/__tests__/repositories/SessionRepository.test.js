@@ -39,7 +39,7 @@ describe('SessionRepository', () => {
 
     it('应该返回现有会话当存在', async () => {
       const mockSession = {
-        session_id: 'session_123',
+        id: 'session_123',
         participants: JSON.stringify(participants),
         created_at: 1000,
         last_active_at: 2000
@@ -65,10 +65,11 @@ describe('SessionRepository', () => {
     });
   });
 
-  describe('findBySessionId', () => {
+  describe('findSessionById', () => {
     it('应该返回会话当存在', async () => {
       const sessionId = 'session_123';
       const mockSession = {
+        id: sessionId,
         session_id: sessionId,
         participants: JSON.stringify([
           { type: 'user', id: 'test_user_123' },
@@ -80,7 +81,7 @@ describe('SessionRepository', () => {
 
       query.mockResolvedValue([mockSession]);
 
-      const result = await sessionRepository.findBySessionId(sessionId);
+      const result = await sessionRepository.findSessionById(sessionId);
 
       expect(result).toBeDefined();
       expect(result.sessionId).toBe(sessionId);
@@ -89,17 +90,18 @@ describe('SessionRepository', () => {
     it('应该返回 null 当不存在', async () => {
       query.mockResolvedValue([]);
 
-      const result = await sessionRepository.findBySessionId('nonexistent');
+      const result = await sessionRepository.findSessionById('nonexistent');
 
       expect(result).toBeNull();
     });
   });
 
-  describe('findByUserId', () => {
+  describe('findSessionsByUser', () => {
     it('应该返回用户的所有会话', async () => {
       const userId = 'test_user_123';
       const mockSessions = [
         {
+          id: 'session_1',
           session_id: 'session_1',
           participants: JSON.stringify([
             { type: 'user', id: userId },
@@ -107,6 +109,7 @@ describe('SessionRepository', () => {
           ])
         },
         {
+          id: 'session_2',
           session_id: 'session_2',
           participants: JSON.stringify([
             { type: 'user', id: userId },
@@ -117,7 +120,7 @@ describe('SessionRepository', () => {
 
       query.mockResolvedValue(mockSessions);
 
-      const result = await sessionRepository.findByUserId(userId);
+      const result = await sessionRepository.findSessionsByUser(userId);
 
       expect(result).toBeDefined();
       expect(Array.isArray(result)).toBe(true);
@@ -125,18 +128,17 @@ describe('SessionRepository', () => {
     });
   });
 
-  describe('updateLastActiveAt', () => {
+  describe('updateSessionActivity', () => {
     it('应该成功更新活动时间', async () => {
       const sessionId = 'session_123';
-      const timestamp = Date.now();
 
       query.mockResolvedValue([{ affectedRows: 1 }]);
 
-      await sessionRepository.updateLastActiveAt(sessionId, timestamp);
+      await sessionRepository.updateSessionActivity(sessionId);
 
       expect(query).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE sessions SET last_active_at'),
-        expect.arrayContaining([timestamp, sessionId])
+        expect.arrayContaining([expect.any(Number), sessionId])
       );
     });
   });

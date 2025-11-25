@@ -1,6 +1,6 @@
 {
   "name": "npc-frontend",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AI NPC 单人世界 - 前端应用",
   "type": "module",
   "scripts": {

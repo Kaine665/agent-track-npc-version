@@ -141,18 +141,18 @@ describe('SessionService', () => {
         }
       ];
 
-      sessionRepository.findByUserId.mockResolvedValue(mockSessions);
+      sessionRepository.findSessionsByUser.mockResolvedValue(mockSessions);
 
       const result = await sessionService.getSessionsByUser(userId);
 
       expect(result).toBeDefined();
       expect(Array.isArray(result)).toBe(true);
       expect(result.length).toBe(2);
-      expect(sessionRepository.findByUserId).toHaveBeenCalledWith(userId);
+      expect(sessionRepository.findSessionsByUser).toHaveBeenCalledWith(userId);
     });
 
     it('应该返回空数组当用户没有会话', async () => {
-      sessionRepository.findByUserId.mockResolvedValue([]);
+      sessionRepository.findSessionsByUser.mockResolvedValue([]);
 
       const result = await sessionService.getSessionsByUser('test_user_123');
 
@@ -160,16 +160,15 @@ describe('SessionService', () => {
     });
   });
 
-  describe('updateLastActiveAt', () => {
+  describe('updateSessionActivity', () => {
     it('应该成功更新会话活动时间', async () => {
       const sessionId = 'session_123';
-      const timestamp = Date.now();
 
-      sessionRepository.updateLastActiveAt.mockResolvedValue(true);
+      sessionRepository.updateSessionActivity.mockResolvedValue(true);
 
-      await sessionService.updateLastActiveAt(sessionId, timestamp);
+      await sessionService.updateSessionActivity(sessionId);
 
-      expect(sessionRepository.updateLastActiveAt).toHaveBeenCalledWith(sessionId, timestamp);
+      expect(sessionRepository.updateSessionActivity).toHaveBeenCalledWith(sessionId);
     });
   });
 });

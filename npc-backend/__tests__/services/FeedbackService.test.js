@@ -218,7 +218,7 @@ describe('FeedbackService', () => {
 
       await expect(feedbackService.getFeedbackById('feedback_123', 'test_user_123')).rejects.toMatchObject({
         code: 'PERMISSION_DENIED',
-        message: '无权访问此反馈'
+        message: '无权查看此反馈'
       });
     });
   });

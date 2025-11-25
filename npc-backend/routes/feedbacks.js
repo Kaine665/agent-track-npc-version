@@ -99,7 +99,9 @@ router.post('/', async (req, res) => {
  */
 router.get('/', async (req, res) => {
   try {
-    const { userId, page, pageSize, type, status } = req.query;
+    // 从认证中间件获取 userId（优先），如果没有则从查询参数获取（兼容旧代码）
+    const userId = req.user?.userId || req.query.userId;
+    const { page, pageSize, type, status } = req.query;
     
     if (!userId) {
       return sendErrorResponse(res, 400, 'VALIDATION_ERROR', '用户 ID 不能为空');
@@ -127,7 +129,8 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { userId } = req.query;
+    // 从认证中间件获取 userId（优先），如果没有则从查询参数获取（兼容旧代码）
+    const userId = req.user?.userId || req.query.userId;
     
     const feedback = await feedbackService.getFeedbackById(id, userId);
     

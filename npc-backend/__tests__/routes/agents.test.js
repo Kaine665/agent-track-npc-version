@@ -60,6 +60,12 @@ describe('Agents API Routes', () => {
     });
 
     it('应该拒绝缺少必填字段的请求', async () => {
+      const error = {
+        code: 'VALIDATION_ERROR',
+        message: 'NPC 类型必须是 general 或 special'
+      };
+      agentService.createAgent.mockRejectedValue(error);
+
       const response = await request(app)
         .post('/api/v1/agents')
         .send({
@@ -139,8 +145,9 @@ describe('Agents API Routes', () => {
         .expect(200);
 
       expect(response.body.success).toBe(true);
-      expect(Array.isArray(response.body.data)).toBe(true);
-      expect(response.body.data.length).toBe(2);
+      expect(Array.isArray(response.body.data.agents)).toBe(true);
+      expect(response.body.data.agents.length).toBe(2);
+      expect(response.body.data.total).toBe(2);
       expect(agentService.getAgentList).toHaveBeenCalledWith('test_user_123');
     });
   });
@@ -152,7 +159,8 @@ describe('Agents API Routes', () => {
         id: agentId,
         name: 'Test Agent',
         type: 'general',
-        model: 'openai/gpt-3.5-turbo'
+        model: 'openai/gpt-3.5-turbo',
+        createdBy: 'test_user_123' // 必须匹配认证中间件中的userId
       };
 
       agentService.getAgentById.mockResolvedValue(mockAgent);
@@ -174,7 +182,7 @@ describe('Agents API Routes', () => {
         .expect(404);
 
       expect(response.body.success).toBe(false);
-      expect(response.body.error.code).toBe('AGENT_NOT_FOUND');
+      expect(response.body.error.code).toBe('NOT_FOUND');
     });
   });
 

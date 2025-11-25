@@ -1,6 +1,6 @@
 {
   "name": "npc-backend",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AI NPC 单人世界 - 后端服务",
   "main": "server.js",
   "scripts": {
@@ -38,27 +38,9 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11",
+    "@types/jest": "^29.5.11",
     "jest": "^29.7.0",
-    "supertest": "^6.3.3",
-    "@types/jest": "^29.5.11"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "coveragePathIgnorePatterns": [
-      "/node_modules/",
-      "/tests/",
-      "/scripts/"
-    ],
-    "testMatch": [
-      "**/__tests__/**/*.test.js"
-    ],
-    "collectCoverageFrom": [
-      "services/**/*.js",
-      "repositories/**/*.js",
-      "routes/**/*.js",
-      "middleware/**/*.js",
-      "utils/**/*.js"
-    ]
+    "nodemon": "^3.1.11",
+    "supertest": "^6.3.3"
   }
 }

@@ -37,15 +37,15 @@ describe('EventService', () => {
       };
 
       agentService.getAgentById.mockResolvedValue({ id: 'test_agent_123' });
-      eventRepository.create.mockResolvedValue(mockEvent);
-      sessionService.updateLastActiveAt.mockResolvedValue(true);
+      eventRepository.createEvent.mockResolvedValue(mockEvent);
+      sessionService.updateSessionActivity.mockResolvedValue(true);
 
       const result = await eventService.createEvent(validEventData);
 
       expect(result).toBeDefined();
       expect(result.id).toBe('event_123');
-      expect(eventRepository.create).toHaveBeenCalled();
-      expect(sessionService.updateLastActiveAt).toHaveBeenCalled();
+      expect(eventRepository.createEvent).toHaveBeenCalled();
+      expect(sessionService.updateSessionActivity).toHaveBeenCalled();
     });
 
     it('应该拒绝空 sessionId', async () => {
@@ -127,26 +127,26 @@ describe('EventService', () => {
         }
       ];
 
-      eventRepository.findRecentBySessionId.mockResolvedValue(mockEvents);
+      eventRepository.getRecentEvents.mockResolvedValue(mockEvents);
 
       const result = await eventService.getRecentEvents(sessionId, limit);
 
       expect(result).toBeDefined();
       expect(Array.isArray(result)).toBe(true);
       expect(result.length).toBe(2);
-      expect(eventRepository.findRecentBySessionId).toHaveBeenCalledWith(sessionId, limit);
+      expect(eventRepository.getRecentEvents).toHaveBeenCalledWith(sessionId, limit);
     });
 
     it('应该使用默认 limit', async () => {
-      eventRepository.findRecentBySessionId.mockResolvedValue([]);
+      eventRepository.getRecentEvents.mockResolvedValue([]);
 
       await eventService.getRecentEvents('session_123');
 
-      expect(eventRepository.findRecentBySessionId).toHaveBeenCalledWith('session_123', 20);
+      expect(eventRepository.getRecentEvents).toHaveBeenCalledWith('session_123', 20);
     });
   });
 
-  describe('getEventsBySessionId', () => {
+  describe('getEventsBySession', () => {
     it('应该返回会话的所有事件', async () => {
       const sessionId = 'session_123';
       const mockEvents = [
@@ -154,14 +154,14 @@ describe('EventService', () => {
         { id: 'event_2', sessionId, content: 'Message 2' }
       ];
 
-      eventRepository.findBySessionId.mockResolvedValue(mockEvents);
+      eventRepository.getEventsBySession.mockResolvedValue(mockEvents);
 
-      const result = await eventService.getEventsBySessionId(sessionId);
+      const result = await eventService.getEventsBySession(sessionId);
 
       expect(result).toBeDefined();
       expect(Array.isArray(result)).toBe(true);
       expect(result.length).toBe(2);
-      expect(eventRepository.findBySessionId).toHaveBeenCalledWith(sessionId);
+      expect(eventRepository.getEventsBySession).toHaveBeenCalledWith(sessionId);
     });
   });
 });

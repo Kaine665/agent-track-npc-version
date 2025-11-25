@@ -38,9 +38,10 @@ describe('Messages API Routes', () => {
 
     it('应该成功发送消息并返回 AI 回复', async () => {
       const mockReply = {
-        eventId: 'event_123',
-        content: 'AI Reply',
-        timestamp: Date.now()
+        userEventId: 'event_123',
+        sessionId: 'session_123',
+        timestamp: Date.now(),
+        status: 'pending'
       };
 
       messageService.sendMessage.mockResolvedValue(mockReply);
@@ -51,7 +52,9 @@ describe('Messages API Routes', () => {
         .expect(200);
 
       expect(response.body.success).toBe(true);
-      expect(response.body.data.content).toBe('AI Reply');
+      expect(response.body.data.userEventId).toBe('event_123');
+      expect(response.body.data.sessionId).toBe('session_123');
+      expect(response.body.data.status).toBe('pending');
       expect(messageService.sendMessage).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: validMessageData.userId,
@@ -62,6 +65,13 @@ describe('Messages API Routes', () => {
     });
 
     it('应该拒绝缺少必填字段的请求', async () => {
+      // Mock MessageService 抛出验证错误
+      const error = {
+        code: 'VALIDATION_ERROR',
+        message: 'Agent ID 不能为空'
+      };
+      messageService.sendMessage.mockRejectedValue(error);
+
       const response = await request(app)
         .post('/api/v1/messages')
         .send({

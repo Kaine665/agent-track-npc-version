@@ -59,16 +59,20 @@ describe('MessageService', () => {
     it('应该成功发送消息并返回 AI 回复', async () => {
       agentService.getAgentById.mockResolvedValue(mockAgent);
       sessionService.getOrCreateSession.mockResolvedValue(mockSession);
-      eventService.createEvent.mockResolvedValueOnce(mockUserEvent).mockResolvedValueOnce(mockAgentEvent);
+      eventService.createEvent.mockResolvedValue(mockUserEvent);
       eventService.getRecentEvents.mockResolvedValue([mockUserEvent]);
       llmService.generateReply.mockResolvedValue('AI Reply');
 
       const result = await messageService.sendMessage(validOptions);
 
       expect(result).toBeDefined();
-      expect(result.content).toBe('AI Reply');
-      expect(eventService.createEvent).toHaveBeenCalledTimes(2); // 用户消息 + AI 回复
-      expect(llmService.generateReply).toHaveBeenCalled();
+      expect(result.userEventId).toBe(mockUserEvent.id);
+      expect(result.sessionId).toBe(mockSession.sessionId);
+      expect(result.status).toBe('pending');
+      // 等待异步操作完成
+      await new Promise(resolve => setImmediate(resolve));
+      // 用户消息Event（同步）+ Agent回复Event（异步）= 2次调用
+      expect(eventService.createEvent).toHaveBeenCalledTimes(2);
     });
 
     it('应该拒绝空 userId', async () => {
@@ -116,13 +120,17 @@ describe('MessageService', () => {
       eventService.createEvent.mockResolvedValue(mockUserEvent);
       eventService.getRecentEvents.mockResolvedValue([mockUserEvent]);
       
+      // LLM 调用是异步的，不会阻塞主流程
+      // 用户消息会成功创建，LLM 错误在后台处理
       const error = new Error('LLM API 调用失败');
       error.code = 'LLM_API_ERROR';
       llmService.generateReply.mockRejectedValue(error);
 
-      await expect(messageService.sendMessage(validOptions)).rejects.toMatchObject({
-        code: 'LLM_API_ERROR'
-      });
+      // sendMessage 应该成功返回，因为 LLM 调用是异步的
+      const result = await messageService.sendMessage(validOptions);
+      expect(result).toBeDefined();
+      expect(result.status).toBe('pending');
+      // LLM 错误会在后台处理，不会影响主流程
     });
 
     it('应该使用自定义 contextLimit', async () => {

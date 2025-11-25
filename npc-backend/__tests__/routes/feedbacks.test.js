@@ -49,7 +49,10 @@ describe('Feedbacks API Routes', () => {
 
       const response = await request(app)
         .post('/api/v1/feedbacks')
-        .send(validFeedbackData)
+        .send({
+          userId: 'test_user_123',
+          ...validFeedbackData
+        })
         .expect(201);
 
       expect(response.body.success).toBe(true);
@@ -81,6 +84,7 @@ describe('Feedbacks API Routes', () => {
       const response = await request(app)
         .post('/api/v1/feedbacks')
         .send({
+          userId: 'test_user_123',
           ...validFeedbackData,
           type: 'invalid_type'
         })
@@ -113,25 +117,32 @@ describe('Feedbacks API Routes', () => {
       feedbackService.getUserFeedbacks.mockResolvedValue(mockFeedbacks);
 
       const response = await request(app)
-        .get('/api/v1/feedbacks')
+        .get('/api/v1/feedbacks?userId=test_user_123')
         .expect(200);
 
       expect(response.body.success).toBe(true);
       expect(Array.isArray(response.body.data)).toBe(true);
       expect(response.body.data.length).toBe(2);
-      expect(feedbackService.getUserFeedbacks).toHaveBeenCalledWith('test_user_123', {});
+      expect(feedbackService.getUserFeedbacks).toHaveBeenCalledWith('test_user_123', {
+        page: 1,
+        pageSize: 20,
+        type: undefined,
+        status: undefined
+      });
     });
 
     it('应该支持分页参数', async () => {
       feedbackService.getUserFeedbacks.mockResolvedValue([]);
 
       await request(app)
-        .get('/api/v1/feedbacks?page=2&pageSize=10')
+        .get('/api/v1/feedbacks?userId=test_user_123&page=2&pageSize=10')
         .expect(200);
 
       expect(feedbackService.getUserFeedbacks).toHaveBeenCalledWith('test_user_123', {
-        page: '2',
-        pageSize: '10'
+        page: 2,
+        pageSize: 10,
+        type: undefined,
+        status: undefined
       });
     });
 
@@ -139,11 +150,14 @@ describe('Feedbacks API Routes', () => {
       feedbackService.getUserFeedbacks.mockResolvedValue([]);
 
       await request(app)
-        .get('/api/v1/feedbacks?type=bug')
+        .get('/api/v1/feedbacks?userId=test_user_123&type=bug')
         .expect(200);
 
       expect(feedbackService.getUserFeedbacks).toHaveBeenCalledWith('test_user_123', {
-        type: 'bug'
+        page: 1,
+        pageSize: 20,
+        type: 'bug',
+        status: undefined
       });
     });
   });
@@ -162,7 +176,7 @@ describe('Feedbacks API Routes', () => {
       feedbackService.getFeedbackById.mockResolvedValue(mockFeedback);
 
       const response = await request(app)
-        .get(`/api/v1/feedbacks/${feedbackId}`)
+        .get(`/api/v1/feedbacks/${feedbackId}?userId=test_user_123`)
         .expect(200);
 
       expect(response.body.success).toBe(true);
