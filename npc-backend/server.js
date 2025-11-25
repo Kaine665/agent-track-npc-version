@@ -31,7 +31,7 @@
  *
  * @author AI Assistant
  * @created 2025-11-20
- * @lastModified 2025-11-20
+ * @lastModified 2025-01-XX
  */
 
 // 加载配置（优先 YAML，回退到 .env）
@@ -65,9 +65,103 @@ const {
 function createApp() {
   const app = express();
 
-  // 配置 CORS：允许所有来源（开发环境）
-  // 生产环境需要配置具体的允许来源
-  app.use(cors());
+  // 配置 CORS：根据环境变量允许特定来源
+  /**
+   * 获取允许的 CORS 来源列表
+   * 
+   * 【优先级】
+   * 1. CORS_ORIGINS 环境变量（最高优先级，用逗号分隔）
+   * 2. 根据环境自动生成（生产环境、测试环境等）
+   * 
+   * 【环境变量说明】
+   * - CORS_ORIGINS: 允许的来源列表，用逗号分隔
+   *   例如：CORS_ORIGINS=http://localhost:3000,http://localhost:3001,http://example.com
+   * - SERVER_IP: 服务器 IP 地址（用于自动生成允许的来源）
+   * - FRONTEND_DOMAIN: 前端域名（如果有）
+   * - NODE_ENV: 环境类型（production/development）
+   */
+  const getAllowedOrigins = () => {
+    const origins = [];
+    
+    // 1. 从环境变量 CORS_ORIGINS 读取（优先级最高）
+    if (process.env.CORS_ORIGINS) {
+      const envOrigins = process.env.CORS_ORIGINS
+        .split(',')
+        .map(origin => origin.trim())
+        .filter(origin => origin.length > 0);
+      origins.push(...envOrigins);
+    }
+    
+    // 2. 获取服务器 IP（用于自动生成允许的来源）
+    const serverIP = process.env.SERVER_IP || 
+                     (process.env.DB_HOST && process.env.DB_HOST !== 'mysql' ? process.env.DB_HOST : null) ||
+                     'localhost';
+    
+    // 3. 生产环境：通过 Nginx 访问（端口 80）
+    if (process.env.NODE_ENV === 'production') {
+      origins.push(
+        `http://${serverIP}`,
+        `http://${serverIP}:80`
+      );
+      
+      // 如果有域名配置
+      if (process.env.FRONTEND_DOMAIN) {
+        origins.push(
+          `http://${process.env.FRONTEND_DOMAIN}`,
+          `https://${process.env.FRONTEND_DOMAIN}`
+        );
+      }
+    }
+    
+    // 4. Green 环境测试（端口 3001）
+    origins.push(`http://${serverIP}:3001`);
+    
+    // 5. Blue 环境测试（端口 3000，如果有）
+    origins.push(`http://${serverIP}:3000`);
+    
+    // 6. 开发环境：允许本地开发服务器
+    if (process.env.NODE_ENV !== 'production') {
+      origins.push(
+        'http://localhost:3000',
+        'http://localhost:5173', // Vite 默认端口
+        'http://127.0.0.1:3000'
+      );
+    }
+    
+    // 去重并过滤空值
+    return [...new Set(origins.filter(Boolean))];
+  };
+
+  const corsOptions = {
+    origin: function (origin, callback) {
+      const allowedOrigins = getAllowedOrigins();
+      
+      // 没有 origin（如 Postman、curl、服务器端请求），允许通过
+      // 有 origin 时，检查是否在允许列表中
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        // 记录拒绝的来源（用于调试）
+        console.warn(`⚠️  CORS 拒绝来源: ${origin}`);
+        console.warn(`   允许的来源列表: ${allowedOrigins.join(', ')}`);
+        callback(new Error('不允许的 CORS 来源'));
+      }
+    },
+    credentials: true, // 允许携带凭证（如 Cookie、Authorization header）
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Content-Length', 'X-Request-Id'],
+    maxAge: 86400 // 预检请求缓存时间（24小时）
+  };
+
+  app.use(cors(corsOptions));
+  
+  // 启动时输出允许的 CORS 来源（用于调试）
+  if (process.env.NODE_ENV !== 'production' || process.env.DEBUG_CORS === 'true') {
+    const allowedOrigins = getAllowedOrigins();
+    console.log('🔒 CORS 允许的来源:');
+    allowedOrigins.forEach(origin => console.log(`   - ${origin}`));
+  }
 
   // 配置 JSON 解析中间件
   // 用于解析请求体中的 JSON 数据

@@ -89,18 +89,58 @@ if [ -z "$NETWORK_NAME" ]; then
     docker network create $NETWORK_NAME 2>/dev/null || true
 fi
 
+# 获取服务器 IP（用于 CORS 配置和前端构建）
+SERVER_IP=$(curl -s ifconfig.me 2>/dev/null || curl -s ipinfo.io/ip 2>/dev/null || hostname -I | awk '{print $1}' || echo "localhost")
+
 echo -e "${YELLOW}📦 构建新版本镜像 (${NEW_ENV})...${NC}"
 docker build -t agent-track-npc-version-backend:${NEW_ENV} ./npc-backend
-docker build -t agent-track-npc-version-frontend:${NEW_ENV} ./npc-frontend
+
+# 构建前端镜像（根据环境使用不同的 API 地址）
+if [ "$NEW_ENV" = "green" ]; then
+    # Green 环境：使用绝对路径，指向 Green 后端（8001端口）
+    # 这样可以直接通过端口 3001 访问并测试
+    echo -e "${YELLOW}📦 构建 Green 前端镜像（使用绝对路径 http://${SERVER_IP}:8001）...${NC}"
+    docker build \
+      --build-arg VITE_API_BASE_URL=http://${SERVER_IP}:8001 \
+      -t agent-track-npc-version-frontend:${NEW_ENV} \
+      ./npc-frontend
+else
+    # Blue 环境：使用相对路径（通过 Nginx）
+    echo -e "${YELLOW}📦 构建 Blue 前端镜像（使用相对路径 /api）...${NC}"
+    docker build \
+      --build-arg VITE_API_BASE_URL=/api \
+      -t agent-track-npc-version-frontend:${NEW_ENV} \
+      ./npc-frontend
+fi
 
 # 4. 启动新版本后端容器（使用容器名，方便 Nginx 访问）
 echo -e "${YELLOW}🚀 启动新版本后端容器 (${NEW_ENV})...${NC}"
+
+# 构建 CORS 允许的来源列表
+# 生产环境：通过 Nginx（端口 80）
+# Green 测试：端口 3001
+# Blue 测试：端口 3000
+CORS_ORIGINS="http://${SERVER_IP},http://${SERVER_IP}:80"
+if [ "$NEW_ENV" = "green" ]; then
+    CORS_ORIGINS="${CORS_ORIGINS},http://${SERVER_IP}:3001"
+else
+    CORS_ORIGINS="${CORS_ORIGINS},http://${SERVER_IP}:3000"
+fi
+
+# 如果环境变量中已经设置了 CORS_ORIGINS，追加到列表
+if [ -n "${CORS_ORIGINS_ENV:-}" ]; then
+    CORS_ORIGINS="${CORS_ORIGINS},${CORS_ORIGINS_ENV}"
+fi
+
 docker run -d \
   --name npc-backend-${NEW_ENV} \
   --network ${NETWORK_NAME} \
   -p ${NEW_BACKEND_PORT}:8000 \
   -e NODE_ENV=production \
   -e PORT=8000 \
+  -e SERVER_IP=${SERVER_IP} \
+  -e CORS_ORIGINS="${CORS_ORIGINS}" \
+  -e FRONTEND_DOMAIN="${FRONTEND_DOMAIN:-}" \
   -e DB_HOST=mysql \
   -e DB_PORT=3306 \
   -e DB_USER=${DB_USER:-root} \
@@ -160,8 +200,7 @@ echo ""
 echo -e "${GREEN}✅ 新版本已部署完成！${NC}"
 echo ""
 
-# 获取服务器 IP 地址
-SERVER_IP=$(curl -s ifconfig.me 2>/dev/null || curl -s ipinfo.io/ip 2>/dev/null || hostname -I | awk '{print $1}' || echo "你的服务器IP")
+# 服务器 IP 已在前面获取，这里直接使用
 
 echo -e "${YELLOW}📋 测试地址：${NC}"
 echo "   - 新后端健康检查: http://${SERVER_IP}:${NEW_BACKEND_PORT}/api/v1/health"
