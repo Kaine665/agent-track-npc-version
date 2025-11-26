@@ -202,6 +202,7 @@ router.get("/check", authenticate, async (req, res) => {
 
     // 获取会话的所有事件
     const eventService = require("../services/EventService");
+    const { calculateMaxLineWidth } = require("../utils/textUtils");
     const allEvents = await eventService.getEventsBySession(sessionId.trim());
 
     // 如果提供了 lastEventId，只返回之后的事件
@@ -215,10 +216,16 @@ router.get("/check", authenticate, async (req, res) => {
       }
     }
 
+    // 为每个事件添加最长行宽度
+    const eventsWithWidth = newEvents.map(event => ({
+      ...event,
+      maxLineWidth: calculateMaxLineWidth(event.content || ''),
+    }));
+
     // 返回结果
     sendSuccessResponse(res, 200, {
-      hasNew: newEvents.length > 0,
-      events: newEvents,
+      hasNew: eventsWithWidth.length > 0,
+      events: eventsWithWidth,
     });
   } catch (error) {
     // 错误处理

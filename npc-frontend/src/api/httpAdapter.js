@@ -448,14 +448,15 @@ class HttpAdapter extends ApiAdapter {
         return response;
       }
 
-      // 后端现在返回：{ userEventId, sessionId, timestamp, status: "pending" }
-      // 前端需要：{ id, sessionId, role: "user", content, createdAt, status }
+      // 后端现在返回：{ userEventId, sessionId, timestamp, maxLineWidth, status: "pending" }
+      // 前端需要：{ id, sessionId, role: "user", content, createdAt, maxLineWidth, status }
       const userMessage = {
         id: response.data.userEventId || `msg_${Date.now()}`,
         sessionId: response.data.sessionId || null,
         role: "user",
         content: data.message || data.text,
         createdAt: response.data.timestamp || Date.now(),
+        maxLineWidth: response.data.maxLineWidth || 0, // 保留最长行宽度字段
         status: response.data.status || "pending", // pending 表示 Agent 回复正在处理
       };
 
@@ -493,6 +494,7 @@ class HttpAdapter extends ApiAdapter {
         role: event.fromType === "user" ? "user" : "assistant",
         content: event.content || "",
         createdAt: event.timestamp || Date.now(),
+        maxLineWidth: event.maxLineWidth || 0, // 保留最长行宽度字段
       }));
 
       return {
@@ -544,6 +546,7 @@ class HttpAdapter extends ApiAdapter {
         role: event.fromType === "user" ? "user" : "assistant",
         content: event.content || "",
         createdAt: event.timestamp || Date.now(),
+        maxLineWidth: event.maxLineWidth || 0, // 保留最长行宽度字段
       }));
 
       console.log(`[DEBUG] Frontend: converted messages count:`, messages.length);

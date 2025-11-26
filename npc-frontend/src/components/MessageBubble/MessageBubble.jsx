@@ -22,8 +22,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { Avatar, Typography, Button, message } from 'antd';
-import { UserOutlined, RobotOutlined, CopyOutlined, CheckOutlined } from '@ant-design/icons';
+import { Avatar, Typography, Button, message, Input } from 'antd';
+import { UserOutlined, RobotOutlined, CopyOutlined, CheckOutlined, ReloadOutlined, EditOutlined, CloseOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -33,6 +33,7 @@ import { copyToClipboard } from '../../utils/clipboard';
 import styles from './MessageBubble.module.css';
 
 const { Text } = Typography;
+const { TextArea } = Input;
 
 /**
  * 代码块组件（带复制功能）
@@ -109,11 +110,21 @@ const CodeBlock = ({ node, inline, className, children, ...props }) => {
   );
 };
 
-const MessageBubble = ({ message, avatarUrl }) => {
+const MessageBubble = ({ 
+  message, 
+  avatarUrl, 
+  onRegenerate, 
+  onEdit, 
+  isRegenerating = false,
+  isEditing = false,
+  autoCollapse = false // 是否自动压缩（用于历史消息）
+}) => {
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(true); // 默认展开
+  const [isExpanded, setIsExpanded] = useState(!autoCollapse); // 如果autoCollapse为true，默认收起
   const [showToggle, setShowToggle] = useState(false); // 是否显示收起/展开按钮
+  const [editingContent, setEditingContent] = useState(message.content);
+  const [isEditMode, setIsEditMode] = useState(false);
   const contentRef = useRef(null);
 
   // 复制单条AI消息
@@ -167,7 +178,9 @@ const MessageBubble = ({ message, avatarUrl }) => {
       }
 
       // 如果实际高度超过2行，显示收起/展开按钮
-      setShowToggle(actualHeight > maxHeight);
+      // 对于自动压缩的消息，即使超过2行也要显示按钮（允许用户展开）
+      const exceedsTwoLines = actualHeight > maxHeight;
+      setShowToggle(exceedsTwoLines);
     };
 
     // 延迟检查，确保内容已渲染（Markdown 渲染可能需要时间）
@@ -196,11 +209,42 @@ const MessageBubble = ({ message, avatarUrl }) => {
       observer.disconnect();
       window.removeEventListener('resize', checkContentHeight);
     };
-  }, [message.content, isUser, isExpanded]);
+  }, [message.content, isUser, isExpanded, autoCollapse]);
 
   // 切换展开/收起状态
   const toggleExpand = () => {
     setIsExpanded(!isExpanded);
+  };
+
+  // 处理重新生成
+  const handleRegenerate = () => {
+    if (onRegenerate) {
+      onRegenerate(message);
+    }
+  };
+
+  // 处理编辑
+  const handleEdit = () => {
+    setIsEditMode(true);
+    setEditingContent(message.content);
+  };
+
+  // 保存编辑
+  const handleSaveEdit = () => {
+    if (!editingContent.trim()) {
+      message.warning('消息内容不能为空');
+      return;
+    }
+    if (onEdit && editingContent !== message.content) {
+      onEdit(message, editingContent.trim());
+    }
+    setIsEditMode(false);
+  };
+
+  // 取消编辑
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
+    setEditingContent(message.content);
   };
 
   // 容器样式
@@ -211,9 +255,66 @@ const MessageBubble = ({ message, avatarUrl }) => {
     padding: '0 12px',
   };
 
+  // 计算气泡宽度（基于后端返回的maxLineWidth，避免动态计算导致屏幕抖动）
+  const calculateBubbleWidth = () => {
+    if (isUser) {
+      // 用户消息：根据后端返回的maxLineWidth计算宽度
+      // 如果没有maxLineWidth或内容很短，不设置maxWidth限制，让气泡自适应内容
+      if (!message.maxLineWidth || message.maxLineWidth === 0) {
+        return undefined; // 不设置maxWidth，让气泡自适应
+      }
+      
+      // 使用平均字符宽度估算（中英文混合，约12px）
+      // 15px字体大小，中文字符约16px，英文字符约8px，混合平均约12px
+      const avgCharWidth = 12;
+      const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1920; // 默认1920px
+      const maxScreenWidth = screenWidth * 0.7; // 用户消息最大70%屏幕宽度
+      
+      // 计算文本宽度（加上padding左右各14px = 28px）
+      const textWidth = message.maxLineWidth * avgCharWidth + 28;
+      
+      // 只有当文本宽度超过一定阈值（比如100px，约8个字符）时才设置maxWidth
+      // 对于很短的文本（如2个字），不设置maxWidth，让它自然显示在一行
+      if (textWidth < 100) {
+        return undefined; // 内容很短，不设置maxWidth限制
+      }
+      
+      // 如果文本宽度接近70%屏幕宽度（阈值75%），就设置为70%
+      if (textWidth >= maxScreenWidth * 0.75) {
+        return `${maxScreenWidth}px`;
+      }
+      
+      // 否则使用文本宽度，但不超过70%
+      return `${Math.min(textWidth, maxScreenWidth)}px`;
+    }
+    
+    // AI消息：如果没有maxLineWidth数据，使用默认80%
+    if (!message.maxLineWidth || message.maxLineWidth === 0) {
+      return '80%';
+    }
+    
+    // 使用平均字符宽度估算（中英文混合，约12px）
+    const avgCharWidth = 12;
+    const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1920; // 默认1920px
+    const targetWidth = screenWidth * 0.8; // 80%屏幕宽度
+    
+    // 计算文本宽度（加上padding左右各14px = 28px）
+    const textWidth = message.maxLineWidth * avgCharWidth + 28;
+    
+    // 如果文本宽度接近80%屏幕宽度（阈值75%），就设置为80%
+    if (textWidth >= targetWidth * 0.75) {
+      return `${targetWidth}px`;
+    }
+    
+    // 否则使用文本宽度，但不超过80%
+    return `${Math.min(textWidth, targetWidth)}px`;
+  };
+
   // 气泡样式
+  const calculatedWidth = calculateBubbleWidth();
   const bubbleStyle = {
-    maxWidth: '70%',
+    ...(calculatedWidth && { maxWidth: calculatedWidth }), // 只有当计算出宽度时才设置maxWidth
+    width: isUser ? 'fit-content' : 'fit-content', // 用户和AI消息都使用fit-content，让内容自然适应
     padding: '10px 14px',
     borderRadius: 12,
     backgroundColor: isUser ? '#1890ff' : '#f0f0f0',
@@ -221,9 +322,12 @@ const MessageBubble = ({ message, avatarUrl }) => {
     borderTopRightRadius: isUser ? 2 : 12,
     borderTopLeftRadius: isUser ? 12 : 2,
     position: 'relative',
-    wordBreak: 'break-word',
-    wordWrap: 'break-word',
-    overflowWrap: 'break-word',
+    // 用户消息：正常换行，只在必要时换行（当达到maxWidth时）
+    // AI消息：允许在单词内断行（处理长URL等）
+    wordBreak: isUser ? 'normal' : 'break-word',
+    wordWrap: isUser ? 'normal' : 'break-word',
+    overflowWrap: isUser ? 'normal' : 'break-word',
+    whiteSpace: isUser ? 'normal' : 'normal', // 用户消息正常换行，不强制保留空白
     fontSize: 15,
     lineHeight: 1.6,
   };
@@ -257,10 +361,56 @@ const MessageBubble = ({ message, avatarUrl }) => {
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: isUser ? 'flex-end' : 'flex-start' }}>
         <div style={bubbleStyle} className={styles.bubble}>
           {isUser ? (
-            // 用户消息：纯文本显示
-            <div style={{ whiteSpace: 'pre-wrap' }}>
-              {message.content}
-            </div>
+            // 用户消息：纯文本显示（支持编辑）
+            isEditMode ? (
+              <div style={{ width: '100%' }}>
+                <TextArea
+                  value={editingContent}
+                  onChange={(e) => setEditingContent(e.target.value)}
+                  autoSize={{ minRows: 1, maxRows: 6 }}
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    color: '#fff',
+                    marginBottom: 8
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSaveEdit();
+                    } else if (e.key === 'Escape') {
+                      handleCancelEdit();
+                    }
+                  }}
+                  autoFocus
+                />
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<CloseOutlined />}
+                    onClick={handleCancelEdit}
+                    style={{ color: '#fff', fontSize: 12 }}
+                  >
+                    取消
+                  </Button>
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<CheckOutlined />}
+                    onClick={handleSaveEdit}
+                    style={{ color: '#fff', fontSize: 12 }}
+                    loading={isEditing}
+                  >
+                    保存
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ whiteSpace: 'normal', wordBreak: 'normal' }}>
+                {message.content}
+              </div>
+            )
           ) : (
             // AI 消息：Markdown 渲染
             <div 
@@ -337,7 +487,7 @@ const MessageBubble = ({ message, avatarUrl }) => {
           )}
         </div>
         
-        {/* AI消息的操作按钮（收起/展开和复制） */}
+        {/* AI消息的操作按钮（收起/展开、复制、重新生成） */}
         {!isUser && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
             {/* 收起/展开按钮 */}
@@ -357,6 +507,25 @@ const MessageBubble = ({ message, avatarUrl }) => {
                 {isExpanded ? '收起' : '展开'}
               </Button>
             )}
+            {/* 重新生成按钮 */}
+            {onRegenerate && (
+              <Button
+                type="text"
+                size="small"
+                icon={<ReloadOutlined />}
+                onClick={handleRegenerate}
+                loading={isRegenerating}
+                style={{
+                  padding: '0 4px',
+                  height: 'auto',
+                  fontSize: 12,
+                  color: '#1890ff'
+                }}
+                className={styles.actionButton}
+              >
+                重新生成
+              </Button>
+            )}
             {/* 复制按钮 */}
             <Button
               type="text"
@@ -372,6 +541,27 @@ const MessageBubble = ({ message, avatarUrl }) => {
               className={styles.copyButton}
             >
               {copied ? '已复制' : '复制'}
+            </Button>
+          </div>
+        )}
+        
+        {/* 用户消息的操作按钮（编辑） */}
+        {isUser && !isEditMode && onEdit && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={handleEdit}
+              style={{
+                padding: '0 4px',
+                height: 'auto',
+                fontSize: 12,
+                color: '#999'
+              }}
+              className={styles.actionButton}
+            >
+              编辑
             </Button>
           </div>
         )}
@@ -394,8 +584,14 @@ MessageBubble.propTypes = {
     role: PropTypes.oneOf(['user', 'assistant']).isRequired,
     content: PropTypes.string.isRequired,
     createdAt: PropTypes.number,
+    id: PropTypes.string,
   }).isRequired,
   avatarUrl: PropTypes.string,
+  onRegenerate: PropTypes.func, // 重新生成回调函数
+  onEdit: PropTypes.func, // 编辑回调函数
+  isRegenerating: PropTypes.bool, // 是否正在重新生成
+  isEditing: PropTypes.bool, // 是否正在编辑
+  autoCollapse: PropTypes.bool, // 是否自动压缩（用于历史消息）
 };
 
 export default MessageBubble;

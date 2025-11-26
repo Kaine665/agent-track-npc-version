@@ -148,6 +148,43 @@ chmod +x rollback-to-blue.sh
 chmod +x cleanup-old-version.sh
 ```
 
+---
+
+## 🔄 服务重启最佳实践
+
+**重要：永远不要直接重启生产环境，使用蓝绿部署策略实现零停机更新。**
+
+### 标准重启流程
+
+```bash
+# 1. 检查当前生产环境
+docker ps | grep "npc-backend"
+
+# 2. 修改配置或代码
+nano .env
+# 或
+git pull origin main
+
+# 3. 重启备用环境（用户不受影响）
+# 如果当前生产是 Blue，重启 Green
+docker restart npc-backend-green npc-frontend-green
+
+# 如果当前生产是 Green，重启 Blue
+docker-compose restart backend frontend
+
+# 4. 测试备用环境
+curl http://localhost:8001/api/v1/health  # Green
+# 或
+curl http://localhost:8000/api/v1/health  # Blue
+
+# 5. 切换流量到更新后的环境（<1秒，几乎无感知）
+./switch-to-green.sh  # 或 ./switch-to-blue.sh
+
+# 6. 现在可以更新另一个环境了（可选）
+```
+
+**详细说明请查看：[服务重启最佳实践](./服务重启最佳实践.md)**
+
 ## 与原有脚本的区别
 
 - **`update-production.sh`**：直接更新当前运行的服务（滚动更新）

@@ -23,7 +23,8 @@ llm:
   # 当第一个 API Key 失败（401/403/429/超时）时，会自动尝试下一个
   openrouter:
     enabled: true
-    api_key: "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,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"
+    # 多个 API Key 用逗号分隔（不要有空格）
+    api_key: "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,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,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"
   
   # OpenAI 配置（可选）
   openai:

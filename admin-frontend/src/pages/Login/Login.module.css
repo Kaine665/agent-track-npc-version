@@ -1,0 +1,66 @@
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-image: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 装饰性背景球体 */
+.container::before,
+.container::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  z-index: 0;
+}
+
+.container::before {
+  width: 400px;
+  height: 400px;
+  background: rgba(0, 122, 255, 0.15);
+  top: -100px;
+  left: -100px;
+}
+
+.container::after {
+  width: 300px;
+  height: 300px;
+  background: rgba(52, 199, 89, 0.15);
+  bottom: -50px;
+  right: -50px;
+}
+
+.loginCard {
+  width: 380px;
+  z-index: 1;
+  border: none !important;
+  background: rgba(255, 255, 255, 0.65) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1) !important;
+  border-radius: 24px !important;
+}
+
+.title {
+  text-align: center;
+  margin-bottom: 32px;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--apple-text-primary);
+  letter-spacing: -0.5px;
+}
+
+.footer {
+  margin-top: 24px;
+  text-align: center;
+  color: var(--apple-text-secondary);
+  font-size: 12px;
+}
+
+.footer p {
+  margin: 4px 0;
+}

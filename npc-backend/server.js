@@ -113,19 +113,20 @@ function createApp() {
       }
     }
     
-    // 4. Green 环境测试（端口 3001）
-    origins.push(`http://${serverIP}:3001`);
+    // 4. 允许端口范围 3000-3010（用于多个前端应用）
+    for (let port = 3000; port <= 3010; port++) {
+      origins.push(`http://${serverIP}:${port}`);
+    }
     
-    // 5. Blue 环境测试（端口 3000，如果有）
-    origins.push(`http://${serverIP}:3000`);
-    
-    // 6. 开发环境：允许本地开发服务器
+    // 5. 开发环境：允许本地开发服务器（包括端口范围 3000-3010）
     if (process.env.NODE_ENV !== 'production') {
-      origins.push(
-        'http://localhost:3000',
-        'http://localhost:5173', // Vite 默认端口
-        'http://127.0.0.1:3000'
-      );
+      // 添加 localhost 的端口范围
+      for (let port = 3000; port <= 3010; port++) {
+        origins.push(`http://localhost:${port}`);
+        origins.push(`http://127.0.0.1:${port}`);
+      }
+      // Vite 默认端口
+      origins.push('http://localhost:5173');
     }
     
     // 去重并过滤空值
@@ -136,20 +137,35 @@ function createApp() {
     origin: function (origin, callback) {
       const allowedOrigins = getAllowedOrigins();
       
+      // 调试日志（开发环境）
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`🔍 CORS 检查: origin=${origin || '(none)'}`);
+        console.log(`   允许的来源数量: ${allowedOrigins.length}`);
+      }
+      
       // 没有 origin（如 Postman、curl、服务器端请求），允许通过
       // 有 origin 时，检查是否在允许列表中
       if (!origin || allowedOrigins.includes(origin)) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`✅ CORS 允许: ${origin || '(no origin)'}`);
+        }
         callback(null, true);
       } else {
         // 记录拒绝的来源（用于调试）
         console.warn(`⚠️  CORS 拒绝来源: ${origin}`);
-        console.warn(`   允许的来源列表: ${allowedOrigins.join(', ')}`);
-        callback(new Error('不允许的 CORS 来源'));
+        console.warn(`   允许的来源列表: ${allowedOrigins.slice(0, 10).join(', ')}${allowedOrigins.length > 10 ? '...' : ''}`);
+        // 开发环境下更宽松：允许所有 localhost 来源
+        if (process.env.NODE_ENV !== 'production' && origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+          console.log(`🔓 开发环境：自动允许 localhost 来源: ${origin}`);
+          callback(null, true);
+        } else {
+          callback(new Error('不允许的 CORS 来源'));
+        }
       }
     },
     credentials: true, // 允许携带凭证（如 Cookie、Authorization header）
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
     exposedHeaders: ['Content-Length', 'X-Request-Id'],
     maxAge: 86400 // 预检请求缓存时间（24小时）
   };
@@ -159,8 +175,14 @@ function createApp() {
   // 启动时输出允许的 CORS 来源（用于调试）
   if (process.env.NODE_ENV !== 'production' || process.env.DEBUG_CORS === 'true') {
     const allowedOrigins = getAllowedOrigins();
-    console.log('🔒 CORS 允许的来源:');
-    allowedOrigins.forEach(origin => console.log(`   - ${origin}`));
+    console.log('🔒 CORS 配置:');
+    console.log(`   允许的来源数量: ${allowedOrigins.length}`);
+    console.log(`   开发环境: ${process.env.NODE_ENV !== 'production' ? '是（自动允许 localhost）' : '否'}`);
+    if (allowedOrigins.length <= 20) {
+      allowedOrigins.forEach(origin => console.log(`   - ${origin}`));
+    } else {
+      console.log(`   前 10 个来源: ${allowedOrigins.slice(0, 10).join(', ')}...`);
+    }
   }
 
   // 配置 JSON 解析中间件
@@ -206,6 +228,8 @@ function createApp() {
   app.use("/api/v1/import", require("./routes/import")); // 导入路由
   app.use("/api/v1/feedbacks", require("./routes/feedbacks")); // 反馈路由
   app.use("/api/v1/versions", require("./routes/versions")); // 版本更新日志路由
+  app.use("/api/admin", require("./routes/admin")); // 管理后台路由
+  console.log("✅ Admin routes registered at /api/admin");
   // TODO: 后续阶段添加其他 API 路由
 
   // 配置 404 错误处理（在所有路由之后，错误处理之前）
@@ -261,5 +285,18 @@ function startServer() {
   });
 }
 
-// 启动服务器
-startServer();
+// 启动服务器前，先创建默认管理员账号
+async function initializeAdmin() {
+  try {
+    const createAdminUser = require('./scripts/create-admin-user');
+    await createAdminUser();
+  } catch (error) {
+    console.warn('⚠️  Failed to create admin user:', error.message);
+    // 不阻止服务器启动
+  }
+}
+
+// 初始化管理员账号，然后启动服务器
+initializeAdmin().then(() => {
+  startServer();
+});

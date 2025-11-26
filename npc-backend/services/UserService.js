@@ -38,6 +38,25 @@ async function login(userId, password) {
   }
 
   // 验证密码（账号密码双重匹配）
+  // 添加调试日志
+  console.log('🔐 Password verification:');
+  console.log(`   User ID: ${userId}`);
+  console.log(`   Expected password: "${user.password}" (length: ${user.password?.length || 0})`);
+  console.log(`   Expected password bytes (hex): ${user.password ? Buffer.from(user.password).toString('hex') : 'none'}`);
+  console.log(`   Received password: "${password}" (length: ${password?.length || 0})`);
+  console.log(`   Received password bytes (hex): ${password ? Buffer.from(password).toString('hex') : 'none'}`);
+  console.log(`   Passwords match: ${user.password === password}`);
+  console.log(`   Character-by-character comparison:`);
+  if (user.password && password) {
+    const maxLen = Math.max(user.password.length, password.length);
+    for (let i = 0; i < maxLen; i++) {
+      const expectedChar = user.password[i] || '(missing)';
+      const receivedChar = password[i] || '(missing)';
+      const match = expectedChar === receivedChar ? '✓' : '✗';
+      console.log(`     [${i}]: expected="${expectedChar}" (${expectedChar.charCodeAt(0)}), received="${receivedChar}" (${receivedChar.charCodeAt(0)}), ${match}`);
+    }
+  }
+  
   if (user.password !== password) {
     const error = new Error('密码错误');
     error.code = 'INVALID_PASSWORD';

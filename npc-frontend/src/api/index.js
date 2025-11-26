@@ -303,6 +303,13 @@ const api = new Proxy(
       // Token 管理方法
       if (prop === "setToken") {
         return (token) => {
+          // 先保存到 localStorage（无论适配器是否初始化）
+          if (token) {
+            localStorage.setItem('npc_access_token', token);
+          } else {
+            localStorage.removeItem('npc_access_token');
+          }
+          // 如果适配器已初始化且有实现，也设置到适配器
           if (apiInstance.setToken) {
             apiInstance.setToken(token);
           }
@@ -310,10 +317,12 @@ const api = new Proxy(
       }
       if (prop === "loadToken") {
         return () => {
+          // 优先从适配器读取（如果已初始化且有实现）
           if (apiInstance.loadToken) {
             return apiInstance.loadToken();
           }
-          return null;
+          // 如果适配器未初始化或没有实现，直接从 localStorage 读取
+          return localStorage.getItem('npc_access_token');
         };
       }
       // 如果访问的是适配器的方法（agents, messages, history, sessions, users, import, feedbacks）

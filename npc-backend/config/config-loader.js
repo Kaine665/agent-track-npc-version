@@ -106,34 +106,57 @@ function loadYAMLConfig() {
     }
 
     if (config.llm) {
-      // 环境变量优先级高于 YAML 配置
+      // YAML 配置优先级：如果 YAML 中有配置，优先使用 YAML（覆盖环境变量）
+      // 这样可以在 config.yaml 中统一管理所有配置
       // OpenRouter 配置
       if (config.llm.openrouter) {
-        if (config.llm.openrouter.enabled !== undefined && !process.env.ENABLE_OPENROUTER) {
+        if (config.llm.openrouter.enabled !== undefined) {
           process.env.ENABLE_OPENROUTER = String(config.llm.openrouter.enabled);
         }
-        if (config.llm.openrouter.api_key && !process.env.OPENROUTER_API_KEY) {
-          process.env.OPENROUTER_API_KEY = config.llm.openrouter.api_key;
+        if (config.llm.openrouter.api_key) {
+          // 清理 API Key：去除空格，确保格式正确
+          const cleanedApiKey = config.llm.openrouter.api_key
+            .split(',')
+            .map(key => key.trim())
+            .filter(key => key.length > 0)
+            .join(',');
+          process.env.OPENROUTER_API_KEY = cleanedApiKey;
+          if (process.env.NODE_ENV !== "production") {
+            const keyCount = cleanedApiKey.split(',').length;
+            console.log(`   - OpenRouter API Key: ${keyCount} key(s) loaded from config.yaml`);
+          }
         }
       }
 
       // OpenAI 配置
       if (config.llm.openai) {
-        if (config.llm.openai.enabled !== undefined && !process.env.ENABLE_OPENAI) {
+        if (config.llm.openai.enabled !== undefined) {
           process.env.ENABLE_OPENAI = String(config.llm.openai.enabled);
         }
-        if (config.llm.openai.api_key && !process.env.OPENAI_API_KEY) {
-          process.env.OPENAI_API_KEY = config.llm.openai.api_key;
+        if (config.llm.openai.api_key) {
+          // 清理 API Key：去除空格
+          const cleanedApiKey = config.llm.openai.api_key
+            .split(',')
+            .map(key => key.trim())
+            .filter(key => key.length > 0)
+            .join(',');
+          process.env.OPENAI_API_KEY = cleanedApiKey;
         }
       }
 
       // DeepSeek 配置
       if (config.llm.deepseek) {
-        if (config.llm.deepseek.enabled !== undefined && !process.env.ENABLE_DEEPSEEK) {
+        if (config.llm.deepseek.enabled !== undefined) {
           process.env.ENABLE_DEEPSEEK = String(config.llm.deepseek.enabled);
         }
-        if (config.llm.deepseek.api_key && !process.env.DEEPSEEK_API_KEY) {
-          process.env.DEEPSEEK_API_KEY = config.llm.deepseek.api_key;
+        if (config.llm.deepseek.api_key) {
+          // 清理 API Key：去除空格
+          const cleanedApiKey = config.llm.deepseek.api_key
+            .split(',')
+            .map(key => key.trim())
+            .filter(key => key.length > 0)
+            .join(',');
+          process.env.DEEPSEEK_API_KEY = cleanedApiKey;
         }
       }
     }
@@ -207,7 +230,21 @@ function init() {
     console.log(`   - Database: ${process.env.DB_NAME || "npc_db"} @ ${process.env.DB_HOST || "localhost"}:${process.env.DB_PORT || "3306"}`);
     console.log(`   - Database User: ${process.env.DB_USER || "root"}`);
     console.log(`   - Database Password: ${process.env.DB_PASSWORD ? "***" : "(not set)"}`);
-    console.log(`   - OpenRouter API Key: ${process.env.OPENROUTER_API_KEY ? "***" : "(not set)"}`);
+    
+    // 显示 API Key 配置信息
+    if (process.env.OPENROUTER_API_KEY) {
+      const keyCount = process.env.OPENROUTER_API_KEY.split(',').filter(k => k.trim()).length;
+      console.log(`   - OpenRouter API Key: ${keyCount} key(s) configured`);
+    } else {
+      console.log(`   - OpenRouter API Key: (not set)`);
+    }
+    
+    if (process.env.OPENAI_API_KEY) {
+      console.log(`   - OpenAI API Key: configured`);
+    }
+    if (process.env.DEEPSEEK_API_KEY) {
+      console.log(`   - DeepSeek API Key: configured`);
+    }
   }
 }
 
